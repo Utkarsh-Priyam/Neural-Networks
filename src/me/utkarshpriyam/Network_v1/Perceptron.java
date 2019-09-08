@@ -48,6 +48,14 @@ public class Perceptron {
     private static final boolean GENERATE_RAGGED_ARRAYS = false;
 
     /**
+     * This double value is the learning factor for this pdp network.
+     * It is the step size that dictates how "fast" or "slowly" the
+     * network adjusts its weights (whether it takes big or small
+     * steps in the "downhill direction" (method of gradient descent).
+     */
+    private static final double LAMBDA = 0.1;
+
+    /**
      * The layerCounts array stores the number of neurons
      * in each layer of the network.
      *
@@ -69,12 +77,25 @@ public class Perceptron {
      *
      * @param layerCounts The array which contains the number of
      *                    neurons in each layer of the network
+     *
+     * @throws IllegalArgumentException This method throws an IllegalArgumentException
+     *                                  if the parameter passed does not have at least
+     *                                  2 values (for the input and output layers).
      */
     public Perceptron(int[] layerCounts) {
+        // Throw an IllegalArgumentException if the array passed
+        // doesn't have a length of at least 2 (for the number of
+        // neurons in the input and output layers of the pdp network)
         if (layerCounts.length < 2)
             throw new IllegalArgumentException("not enough layers in network");
+
+        // Store the passed array of the counts of the number of
+        // neurons per layer and shorten the array to exclude the
+        // counts of the input and output layers (for processing)
         this.layerCounts = layerCounts;
         int[] innerLayerCounts = Arrays.copyOfRange(layerCounts,1,layerCounts.length - 1);
+
+        // Generate the neuron and edge arrays
         generateNeuronsAndEdgesArrays(layerCounts[0],innerLayerCounts,layerCounts[layerCounts.length-1]);
     }
 
@@ -91,11 +112,13 @@ public class Perceptron {
      * @param numOutputs        The number of neurons in the output layer of the network
      */
     public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs) {
+        // Compact all the layers data into one single array
         layerCounts = new int[hiddenLayersCount.length + 2];
         layerCounts[0] = numInputs;
         System.arraycopy(hiddenLayersCount, 0, layerCounts, 1, hiddenLayersCount.length);
         layerCounts[layerCounts.length-1] = numOutputs;
 
+        // Generate the neuron and edge arrays
         generateNeuronsAndEdgesArrays(numInputs,hiddenLayersCount,numOutputs);
     }
 
@@ -118,8 +141,10 @@ public class Perceptron {
      */
     private void generateNeuronsAndEdgesArrays(int numInputs, int[] hiddenLayersCount, int numOutputs) {
         if (GENERATE_RAGGED_ARRAYS)
+            // Generate Ragged Arrays
             generateArraysRagged(numInputs,hiddenLayersCount,numOutputs);
         else
+            // Generate the "normal" full block arrays
             generateArraysRegular(numInputs,hiddenLayersCount,numOutputs);
     }
 
@@ -184,7 +209,7 @@ public class Perceptron {
      * @param numOutputs        The number of neurons in the output layer of the network
      */
     private void generateArraysRegular(int numInputs, int[] hiddenLayersCount, int numOutputs) {
-        // Count number maximum number of nodes in network
+        // Count number maximum number of neurons in network
         // The number will serve as the 2nd, 2nd and 3rd dimensions
         // for the neurons, edges arrays
         int maxNumNeurons = Math.max(numInputs,numOutputs);
@@ -218,15 +243,31 @@ public class Perceptron {
     void setWeights(File weightsFile) {
         try
         {
+            // BufferedReader w can read all the weights out of the weightsFile file
             BufferedReader w = new BufferedReader(new FileReader(weightsFile));
+
+            // Iterate through all the different weights layers
+            // The file is expected to have as many rows
+            // with doubles as the pdp has edge layers
             for (int m = 0; m < weights.length; m++)
             {
+                // Split the row's text at the spaces
                 String[] weightsLine = w.readLine().split(" ");
+
+                // Iterate over all the edges in the layer with index m
+                // The file is expected to have enough doubles per line of
+                // text in order to fill up the entire array of weights
+
+                // Iterate over the neurons in layer m first
                 for (int jk = 0; jk < layerCounts[m]; jk++)
+                    // Then iterate over the neurons in layer m+1
                     for (int ij = 0; ij < layerCounts[m+1]; ij++)
+                        // For each of these edges read the weight from the file
                         weights[m][jk][ij] = Double.parseDouble(weightsLine[jk * layerCounts[m+1] + ij]);
             }
         }
+        // A series of catches to catch some of the expected errors +
+        // add some description to the default error messages
         catch (FileNotFoundException fileNotFoundException)
         {
             fileNotFoundException.printStackTrace();
@@ -271,26 +312,41 @@ public class Perceptron {
     protected double[][] runNetwork(File inputsFile) {
         try
         {
+            // BufferedReader can read the inputsFile file
             BufferedReader in = new BufferedReader(new FileReader(inputsFile));
 
+            // The file is formatted so the first line tells how many test cases there are
             int numTestCases = Integer.parseInt(in.readLine());
+            // A 2D array is created with enough rows to store all the test cases individually
             double[][] outputs = new double[numTestCases][];
 
+            // Iterate over all the test cases
             for (int iterator = 0; iterator < numTestCases; iterator++)
             {
+                // Split the row of text in the file by spaces
+                // (number of inputs in row should equal expected amount)
                 String[] inputsLine = in.readLine().split(" ");
                 for (int k = 0; k < layerCounts[0]; k++)
                     activations[0][k] = Integer.parseInt(inputsLine[k]);
 
+                // For each layer 1 to activations.length-1, calculate
+                // the activation values for the neurons of the layers
                 for (int n = 1; n < activations.length; n++)
                     calculateActivations(n);
 
+                // Index of output layer
                 int outputLayerIndex = activations.length - 1;
 
-                outputs[iterator] = Arrays.copyOfRange(activations[outputLayerIndex], 0, layerCounts[outputLayerIndex]);
+                // Store the values of the output neurons into the 2D outputs array
+                double[] activatedNeurons = activations[outputLayerIndex];
+                int countNeurons = layerCounts[outputLayerIndex];
+                outputs[iterator] = Arrays.copyOfRange(activatedNeurons, 0, countNeurons);
             }
+            // Return the 2D outputs array
             return outputs;
         }
+        // A series of catches to catch some of the expected errors +
+        // add some description to the default error messages
         catch (FileNotFoundException fileNotFoundException)
         {
             fileNotFoundException.printStackTrace();
@@ -325,54 +381,147 @@ public class Perceptron {
      *              right, with the input layer as 0 and
      *              the output layer as layerCounts.length-1
      */
-    private void calculateActivations(int layer) {
+    private void calculateActivations(int layer)
+    {
+        // Get index of the previous layer
         int prevLayer = layer - 1;
+
+        // Iterate over all the neurons in the layer with the given layer
         for (int ijk = 0; ijk < layerCounts[layer]; ijk++)
         {
-            double[] prevNodes = Arrays.copyOfRange(activations[prevLayer],0,layerCounts[prevLayer]);
-            double[] prevWeights = new double[prevNodes.length];
+            // All the neurons from the previous layer, stored in an array
+            double[] prevNeurons = Arrays.copyOfRange(activations[prevLayer],0,layerCounts[prevLayer]);
+            // All the weights from the previous layer, stored in an array
+            double[] prevWeights = new double[prevNeurons.length];
 
             for (int ijkPrevLayer = 0; ijkPrevLayer < layerCounts[prevLayer]; ijkPrevLayer++)
                 prevWeights[ijkPrevLayer] = weights[prevLayer][ijkPrevLayer][ijk];
 
-            double input = neuronInputCalculator(prevNodes,prevWeights);
-            activations[layer][ijk] = neuronThresholdFunction(input);
+            // The activation value of neuron indexed ijk is calculated
+            activations[layer][ijk] = neuronActivationValueCalculator(prevNeurons,prevWeights);
         }
     }
 
     /**
-     * This method calculates how all the nodes
+     * This method calculates how all the neurons
      * from the previous layer are combined with their weights
-     * in order to for the input for the next layer's node.
+     * in order to for the input for the next layer's neuron.
+     * It then applies the threshold function to that input
+     * in order to calculate the activation value for the
+     * currently processing neuron.
      *
-     * This method takes two parameters (nodes and weights),
+     * This method takes two parameters (neurons and weights),
      * two arrays which hold the neurons of the previous layer
      * and the weights of the edges which connect those neurons
      * to the target neuron whose input is being calculated.
      *
-     * @param nodes   The neurons of the previous layer
+     * @param neurons   The neurons of the previous layer
      * @param weights The weights of the edges which connect
-     *                the neurons (from nodes) to the target neuron
+     *                the neurons (from neurons) to the target neuron
      *
-     * @return This method returns a combination of the nodes
+     * @return This method returns the neuron's input bounded by the
+     *         threshold function. It calculates the neuron's input
+     *         via the neuronPrevLayerCombinerFunction(...) method.
+     */
+    private double neuronActivationValueCalculator(double[] neurons, double[] weights)
+    {
+        double neuronInput = neuronPrevLayerCombinerFunction(neurons,weights);
+        return neuronThresholdFunction(neuronInput);
+    }
+
+    /**
+     * This method calculates how all the neurons
+     * from the previous layer are combined with their weights
+     * in order to for the input for the next layer's neuron.
+     *
+     * This method takes two parameters (neurons and weights),
+     * two arrays which hold the neurons of the previous layer
+     * and the weights of the edges which connect those neurons
+     * to the target neuron whose input is being calculated.
+     *
+     * @param neurons   The neurons of the previous layer
+     * @param weights The weights of the edges which connect
+     *                the neurons (from neurons) to the target neuron
+     *
+     * @return This method returns a combination of the neurons
      *         and weights arrays which a neuron can use as its
      *         input for the threshold function.
      *
      * @throws IllegalArgumentException This method throws an IllegalArgumentException
-     *                                  if the nodes and weights arrays passed as
+     *                                  if the neurons and weights arrays passed as
      *                                  parameters don't have the same length.
      */
-    private double neuronInputCalculator(double[] nodes, double[] weights) {
-        if (nodes.length != weights.length)
-            throw new IllegalArgumentException("nodes and weights arrays don't have equal lengths");
+    private double neuronPrevLayerCombinerFunction(double[] neurons, double[] weights)
+    {
+        // if the neurons and weights arrays passed as parameters don't have the same length
+        if (neurons.length != weights.length)
+            throw new IllegalArgumentException("neurons and weights arrays don't have equal lengths");
 
         // Currently Dot Product
         double input = 0;
 
-        for (int index = 0; index < nodes.length; index++)
-            input += nodes[index] * weights[index];
+        for (int index = 0; index < neurons.length; index++)
+            input += neurons[index] * weights[index];
 
         return input;
+    }
+
+    /**
+     * This method calculates the derivative of how all the neurons
+     * from the previous layer are combined with their weights
+     * in order to for the input for the next layer's neuron.
+     *
+     * This method takes four parameters (neurons, weights,
+     * index, and isWeight). neurons and weights are two arrays
+     * which hold the neurons of the previous layer and
+     * the weights of the edges which connect those neurons
+     * to the target neuron whose input is being calculated.
+     * index refers to the index of the weight or neuron with
+     * respect to which this method is taking the derivative.
+     * isWeight refers to whether the index is for the weight
+     * or the neuron at with the given index.
+     *
+     * @param neurons    The neurons of the previous layer
+     * @param weights  The weights of the edges which connect
+     *                 the neurons (from neurons) to the target neuron
+     * @param index    The index of the element with respect to which
+     *                 this method is taking the derivative
+     * @param isWeight This boolean is true if the element wrt which
+     *                 the derivative is being taken is a weight,
+     *                 and false if the element is a neuron.
+     *                 The reason functionality for both is included
+     *                 is so that this method can also be used for the
+     *                 derivatives required for the edges present in the
+     *                 inner layers (closer to input layer) of the network.
+     *
+     * @return This method returns the value of the derivative of the
+     *         previous layer combiner function taken with respect to
+     *         the element (either edge or neuron) at the given index.
+     *
+     * @throws IllegalArgumentException This method throws an IllegalArgumentException
+     *                                  if the neurons and weights arrays passed as
+     *                                  parameters don't have the same length.
+     *                                  It also throws an IllegalArgumentException if
+     *                                  the index passed is not a valid index in the
+     *                                  neurons/weights array(s) passed as parameters.
+     */
+    private double neuronPrevLayerCombinerFunctionDeriv(double[] neurons, double[] weights, int index, boolean isWeight)
+    {
+        // if the neurons and weights arrays passed as parameters don't have the same length
+        if (neurons.length != weights.length)
+            throw new IllegalArgumentException("neurons and weights arrays don't have equal lengths");
+
+        // if the index passed is not a valid index in the neurons/weights array(s)
+        if (index < 0 || index >= neurons.length)
+            throw new IllegalArgumentException("index given is not in the valid range for indices");
+
+        /* For the dot product combination, the derivative returns the coefficient: */
+
+        // if index isWeight: return neurons[index] (weights coefficient)
+        if (isWeight)
+            return neurons[index];
+        // else (! isWeight): return weights[index] (neurons coefficient)
+        return weights[index];
     }
 
     /**
@@ -389,13 +538,37 @@ public class Perceptron {
      * that double value in order to bound it
      * between some values (usually 0 to 1 or -1 to 1).
      *
-     * @param input The input to be bounded
+     * @param neuronInput The input to be bounded
      *
      * @return The bounded version of the input
      */
-    private double neuronThresholdFunction(double input)
+    private double neuronThresholdFunction(double neuronInput)
     {
         // Currently f(x) = x
-        return input;
+        return neuronInput;
+    }
+
+    /**
+     * This method is the derivative of the neuron
+     * threshold function for this pdp network. It
+     * is used in the error calculations for the
+     * neurons of the network.
+     *
+     * This method takes one parameter (input),
+     * and applies the derivative of the threshold
+     * function to that double value so that the
+     * value can be used for the partial derivative
+     * calculations later in the back propagation process.
+     *
+     * @param neuronInput The input to be processed in the
+     *                    derivative of the threshold function
+     *
+     * @return The threshold function's derivative
+     *         evaluated at the input double
+     */
+    private double neuronThresholdFunctionDeriv(double neuronInput)
+    {
+        // Currently D(f(x)) = D(x) = 1
+        return 1;
     }
 }
