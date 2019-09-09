@@ -1,4 +1,4 @@
-package me.utkarshpriyam.Network_v1;
+package me.utkarshpriyam.Network;
 
 import java.io.*;
 import java.util.Arrays;
@@ -82,7 +82,8 @@ public class Perceptron {
      *                                  if the parameter passed does not have at least
      *                                  2 values (for the input and output layers).
      */
-    public Perceptron(int[] layerCounts) {
+    public Perceptron(int[] layerCounts)
+    {
         // Throw an IllegalArgumentException if the array passed
         // doesn't have a length of at least 2 (for the number of
         // neurons in the input and output layers of the pdp network)
@@ -111,7 +112,8 @@ public class Perceptron {
      *                          neurons in each hidden layer of the network
      * @param numOutputs        The number of neurons in the output layer of the network
      */
-    public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs) {
+    public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs)
+    {
         // Compact all the layers data into one single array
         layerCounts = new int[hiddenLayersCount.length + 2];
         layerCounts[0] = numInputs;
@@ -139,7 +141,8 @@ public class Perceptron {
      *                          neurons in each hidden layer of the network
      * @param numOutputs        The number of neurons in the output layer of the network
      */
-    private void generateNeuronsAndEdgesArrays(int numInputs, int[] hiddenLayersCount, int numOutputs) {
+    private void generateNeuronsAndEdgesArrays(int numInputs, int[] hiddenLayersCount, int numOutputs)
+    {
         if (GENERATE_RAGGED_ARRAYS)
             // Generate Ragged Arrays
             generateArraysRagged(numInputs,hiddenLayersCount,numOutputs);
@@ -167,7 +170,8 @@ public class Perceptron {
      *                          neurons in each hidden layer of the network
      * @param numOutputs        The number of neurons in the output layer of the network
      */
-    private void generateArraysRagged(int numInputs, int[] hiddenLayersCount, int numOutputs) {
+    private void generateArraysRagged(int numInputs, int[] hiddenLayersCount, int numOutputs)
+    {
         // Generate Neurons Array - Total Layers = Input + Hidden + Output = 2 + numHidden
         activations = new double[2 + hiddenLayersCount.length][];
 
@@ -208,7 +212,8 @@ public class Perceptron {
      *                          neurons in each hidden layer of the network
      * @param numOutputs        The number of neurons in the output layer of the network
      */
-    private void generateArraysRegular(int numInputs, int[] hiddenLayersCount, int numOutputs) {
+    private void generateArraysRegular(int numInputs, int[] hiddenLayersCount, int numOutputs)
+    {
         // Count number maximum number of neurons in network
         // The number will serve as the 2nd, 2nd and 3rd dimensions
         // for the neurons, edges arrays
@@ -240,7 +245,8 @@ public class Perceptron {
      *                          the file is not properly formatted, a given weight is not a
      *                          double, or not enough weights are given in the weights file.
      */
-    void setWeights(File weightsFile) {
+    void setWeights(File weightsFile)
+    {
         try
         {
             // BufferedReader w can read all the weights out of the weightsFile file
@@ -313,7 +319,8 @@ public class Perceptron {
      *                          the file is not properly formatted, a given weight is not a
      *                          double, or not enough inputs are given in the inputs file.
      */
-    protected double[][] runNetwork(File inputsFile) {
+    protected double[][] runNetwork(File inputsFile)
+    {
         try
         {
             // BufferedReader can read the inputsFile file
