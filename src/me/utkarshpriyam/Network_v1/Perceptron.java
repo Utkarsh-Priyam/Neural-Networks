@@ -301,6 +301,10 @@ public class Perceptron {
      *
      * @param inputsFile        The file which holds all of the inputs for the network
      *
+     * @return A 2D array of doubles, where each row represents a new test case. The
+     *         array rows are sorted in the order that the inputs are given. Each row
+     *         of the array will have as many elements as output neurons in the network.
+     *
      * @throws RuntimeException This method throws a runtime exception if anything
      *                          goes wrong during input-reading or processing.
      *                          This method also prints out the stack trace
