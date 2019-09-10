@@ -49,7 +49,7 @@ public class Main {
         Perceptron pdp = new Perceptron(new int[] {2,2,1});
 
         // Read the weights for the network from the file
-        pdp.setWeights(weights);
+        pdp.readWeights(weights);
 
         // Run the network on all the inputs (from the file)
         double[][] calculatedOutputs = pdp.runNetwork(inputs);

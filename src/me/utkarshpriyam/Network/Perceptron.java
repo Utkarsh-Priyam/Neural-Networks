@@ -5,7 +5,8 @@ import java.util.Arrays;
 
 /**
  * This is the Perceptron class.
- * It represents a pdp (parallel distributive perceptron).
+ * It represents a perceptron and uses
+ * pdp (parallel distributive processing).
  *
  * This class can be instantiated either
  * by an array containing all layer sizes,
@@ -19,20 +20,20 @@ import java.util.Arrays;
  * Running, Training, and Testing
  *
  * In Running Mode (this is for actually using the network):
- *   - The pdp will output the final raw information it calculates
- *   - The pdp will not take any predicted output values
- *      - As a result, the pdp will neither train its weights
+ *   - The network will output the final raw information it calculates
+ *   - The network will not take any predicted output values
+ *      - As a result, the network will neither train its weights
  *        not return an error value
  *
  * In Training Mode (as the name suggests, to train the network):
- *   - The pdp will take in both the inputs and the expected outputs
- *   - The pdp will automatically calculate its error and
+ *   - The network will take in both the inputs and the expected outputs
+ *   - The network will automatically calculate its error and
  *     use the method of gradient descent to adjust its weights
  *     in order to reduce that aforementioned error
  *
  * In Testing Mode (this is a blend of the previous two modes):
- *   - The pdp will take both the inputs and the expected outputs.
- *     However, as this is not a training exercise, the pdp will not
+ *   - The network will take both the inputs and the expected outputs.
+ *     However, as this is not a training exercise, the network will not
  *     update its weights in order to minimize error. It will simply calculate
  *     and return the error
  *
@@ -238,14 +239,11 @@ public class Perceptron {
      * @param weightsFile       The file which holds all of the weights for the network
      *
      * @throws RuntimeException This method throws a runtime exception if anything
-     *                          goes wrong during the weight-reading process.
+     *                          goes wrong during the file-reading process.
      *                          This method also prints out the stack trace
      *                          of the original error.
-     *                          An exception is thrown if the given weights file is not found,
-     *                          the file is not properly formatted, a given weight is not a
-     *                          double, or not enough weights are given in the weights file.
      */
-    void setWeights(File weightsFile)
+    void readWeights(File weightsFile)
     {
         try
         {
@@ -254,7 +252,7 @@ public class Perceptron {
 
             // Iterate through all the different weights layers
             // The file is expected to have as many rows
-            // with doubles as the pdp has edge layers
+            // with doubles as the network has edge layers
             for (int m = 0; m < weights.length; m++)
             {
                 // Split the row's text at the spaces
@@ -272,29 +270,56 @@ public class Perceptron {
                         weights[m][jk][ij] = Double.parseDouble(weightsLine[jk * layerCounts[m+1] + ij]);
             }
         }
-        // A series of catches to catch some of the expected errors +
-        // add some description to the default error messages
-        catch (FileNotFoundException fileNotFoundException)
-        {
-            fileNotFoundException.printStackTrace();
-            throw new RuntimeException("Weights file not found");
-        }
         catch (IOException ioException)
         {
             ioException.printStackTrace();
             throw new RuntimeException("The weights file is not formatted properly");
         }
-        catch (NumberFormatException numberFormatException)
-        {
-            numberFormatException.printStackTrace();
-            throw new RuntimeException("Given weight could not be converted to a double");
-        }
-        catch (ArrayIndexOutOfBoundsException arrayIndexOutOfBoundsException)
-        {
-            arrayIndexOutOfBoundsException.printStackTrace();
-            throw new RuntimeException("Not enough weights given in file");
-        }
+    }
 
+    /**
+     * This method can be called by the network handler class in order to
+     * have the pdp network read the input values stored in the given file.
+     *
+     * This method takes the single parameter value inputsFile,
+     * which has all of the inputs for the network stored
+     * in a specific ordering and organization within the file.
+     *
+     * @param inputsFile       The file which holds all of the inputs for the network
+     *
+     * @throws RuntimeException This method throws a runtime exception if anything
+     *                          goes wrong during the file-reading process.
+     *                          This method also prints out the stack trace
+     *                          of the original error.
+     */
+    private double[][] readInputs(File inputsFile)
+    {
+        try
+        {
+            // BufferedReader can read the inputsFile file
+            BufferedReader in = new BufferedReader(new FileReader(inputsFile));
+
+            // The file is formatted so the first line tells how many test cases there are
+            int numTestCases = Integer.parseInt(in.readLine());
+            double[][] inputs = new double[numTestCases][layerCounts[0]];
+
+            // Iterate over all the test cases
+            for (int iterator = 0; iterator < numTestCases; iterator++)
+            {
+                // Split the row of text in the file by spaces
+                // (number of inputs in row should equal expected amount)
+                String[] inputsLine = in.readLine().split(" ");
+                for (int inputIndex = 0; inputIndex < layerCounts[0]; inputIndex++)
+                    inputs[iterator][inputIndex] = Double.parseDouble(inputsLine[inputIndex]);
+            }
+
+            return inputs;
+        }
+        catch (IOException ioException)
+        {
+            ioException.printStackTrace();
+            throw new RuntimeException("The inputs file is not formatted properly");
+        }
     }
 
     /**
@@ -321,63 +346,33 @@ public class Perceptron {
      */
     protected double[][] runNetwork(File inputsFile)
     {
-        try
-        {
-            // BufferedReader can read the inputsFile file
-            BufferedReader in = new BufferedReader(new FileReader(inputsFile));
+        // Get the inputs from the file
+        double[][] inputs = readInputs(inputsFile);
 
-            // The file is formatted so the first line tells how many test cases there are
-            int numTestCases = Integer.parseInt(in.readLine());
-            // A 2D array is created with enough rows to store all the test cases individually
-            double[][] outputs = new double[numTestCases][];
+        // A 2D array is created with enough rows to store all the test cases individually
+        double[][] outputs = new double[inputs.length][];
 
-            // Iterate over all the test cases
-            for (int iterator = 0; iterator < numTestCases; iterator++)
-            {
-                // Split the row of text in the file by spaces
-                // (number of inputs in row should equal expected amount)
-                String[] inputsLine = in.readLine().split(" ");
-                for (int k = 0; k < layerCounts[0]; k++)
-                    activations[0][k] = Integer.parseInt(inputsLine[k]);
+        // Iterate over all the test cases
+        for (int iterator = 0; iterator < inputs.length; iterator++)
+        {
+            // Put the input values into the network
+            activations[0] = inputs[iterator];
 
-                // For each layer 1 to activations.length-1, calculate
-                // the activation values for the neurons of the layers
-                for (int n = 1; n < activations.length; n++)
-                    calculateActivations(n);
+            // For each layer 1 to activations.length-1, calculate
+            // the activation values for the neurons of the layers
+            for (int n = 1; n < activations.length; n++)
+                calculateActivations(n);
 
-                // Index of output layer
-                int outputLayerIndex = activations.length - 1;
+            // Index of output layer
+            int outputLayerIndex = activations.length - 1;
 
-                // Store the values of the output neurons into the 2D outputs array
-                double[] activatedNeurons = activations[outputLayerIndex];
-                int countNeurons = layerCounts[outputLayerIndex];
-                outputs[iterator] = Arrays.copyOfRange(activatedNeurons, 0, countNeurons);
-            }
-            // Return the 2D outputs array
-            return outputs;
+            // Store the values of the output neurons into the 2D outputs array
+            double[] activatedNeurons = activations[outputLayerIndex];
+            int countNeurons = layerCounts[outputLayerIndex];
+            outputs[iterator] = Arrays.copyOfRange(activatedNeurons, 0, countNeurons);
         }
-        // A series of catches to catch some of the expected errors +
-        // add some description to the default error messages
-        catch (FileNotFoundException fileNotFoundException)
-        {
-            fileNotFoundException.printStackTrace();
-            throw new RuntimeException("Inputs file not found");
-        }
-        catch (IOException ioException)
-        {
-            ioException.printStackTrace();
-            throw new RuntimeException("The inputs file is not formatted properly");
-        }
-        catch (NumberFormatException numberFormatException)
-        {
-            numberFormatException.printStackTrace();
-            throw new RuntimeException("Given input could not be converted to an integer");
-        }
-        catch (ArrayIndexOutOfBoundsException arrayIndexOutOfBoundsException)
-        {
-            arrayIndexOutOfBoundsException.printStackTrace();
-            throw new RuntimeException("Not enough inputs given in file");
-        }
+        // Return the 2D outputs array
+        return outputs;
     }
 
     /**
