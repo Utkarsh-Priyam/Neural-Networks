@@ -2,6 +2,7 @@ package me.utkarshpriyam.Network;
 
 import java.io.*;
 import java.util.Arrays;
+import java.util.StringTokenizer;
 
 /**
  * This is the Perceptron class.
@@ -24,13 +25,14 @@ import java.util.Arrays;
  *   - The network will not take any predicted output values
  *      - As a result, the network will neither train its weights
  *        not return an error value
- *
+ * WORK IN PROGRESS:
  * In Training Mode (as the name suggests, to train the network):
  *   - The network will take in both the inputs and the expected outputs
  *   - The network will automatically calculate its error and
  *     use the method of gradient descent to adjust its weights
  *     in order to reduce that aforementioned error
  *
+ * TO BE IMPLEMENTED:
  * In Testing Mode (this is a blend of the previous two modes):
  *   - The network will take both the inputs and the expected outputs.
  *     However, as this is not a training exercise, the network will not
@@ -85,16 +87,16 @@ public class Perceptron {
      */
     public Perceptron(int[] layerCounts)
     {
-        // Throw an IllegalArgumentException if the array passed
-        // doesn't have a length of at least 2 (for the number of
-        // neurons in the input and output layers of the pdp network)
+        // Throw an IllegalArgumentException if not enough layers (2) are passed
         if (layerCounts.length < 2)
             throw new IllegalArgumentException("not enough layers in network");
 
-        // Store the passed array of the counts of the number of
-        // neurons per layer and shorten the array to exclude the
-        // counts of the input and output layers (for processing)
+        // Adjust the inputs to ensure that every layer has at least 1 neuron
+        layerCounts = setMinimumAllowed(layerCounts,1);
+
+        // Store the layers array
         this.layerCounts = layerCounts;
+        // Shorten the layer counts array to exclude the input and output counts
         int[] innerLayerCounts = Arrays.copyOfRange(layerCounts,1,layerCounts.length - 1);
 
         // Generate the neuron and edge arrays
@@ -115,6 +117,13 @@ public class Perceptron {
      */
     public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs)
     {
+        // Adjust the inputs to ensure that every layer has at least 1 neuron
+        if (numInputs < 1)
+            numInputs = 1;
+        if (numOutputs < 1)
+            numOutputs = 1;
+        hiddenLayersCount = setMinimumAllowed(hiddenLayersCount,1);
+
         // Compact all the layers data into one single array
         layerCounts = new int[hiddenLayersCount.length + 2];
         layerCounts[0] = numInputs;
@@ -123,6 +132,22 @@ public class Perceptron {
 
         // Generate the neuron and edge arrays
         generateNeuronsAndEdgesArrays(numInputs,hiddenLayersCount,numOutputs);
+    }
+
+    /**
+     * Goes through the given array and ensures that all values of the array
+     * are at least as large as the given input integer
+     * @param hiddenLayersCount The array to read and modify
+     * @param minimumValue      The minimum allowed value
+     *
+     * @return The adjusted array
+     */
+    private int[] setMinimumAllowed(int[] hiddenLayersCount, int minimumValue)
+    {
+        int[] newArray = new int[hiddenLayersCount.length];
+        for (int i = 0; i < hiddenLayersCount.length; i++)
+            newArray[i] = Math.max(hiddenLayersCount[i], minimumValue);
+        return newArray;
     }
 
     /**
@@ -183,7 +208,6 @@ public class Perceptron {
             activations[i] = new double[hiddenLayersCount[i]];
         // Set Output Neurons Array length
         activations[activations.length - 1] = new double[numOutputs];
-
 
         // Generate Edges Array - Total Layers = numNeurons - 1
         weights = new double[activations.length - 1][][];
@@ -251,23 +275,26 @@ public class Perceptron {
             BufferedReader w = new BufferedReader(new FileReader(weightsFile));
 
             // Iterate through all the different weights layers
-            // The file is expected to have as many rows
-            // with doubles as the network has edge layers
             for (int m = 0; m < weights.length; m++)
             {
-                // Split the row's text at the spaces
-                String[] weightsLine = w.readLine().split(" ");
+                // Make sure the next line is not null
+                String textLine = w.readLine();
+                if (textLine == null)
+                    textLine = "";
 
-                // Iterate over all the edges in the layer with index m
-                // The file is expected to have enough doubles per line of
-                // text in order to fill up the entire array of weights
+                // Make a StringTokenizer to read the line
+                StringTokenizer weightsLine = new StringTokenizer(textLine);
+
+                // Now iterate over all the edges in the layer with index m
 
                 // Iterate over the neurons in layer m first
                 for (int jk = 0; jk < layerCounts[m]; jk++)
                     // Then iterate over the neurons in layer m+1
                     for (int ij = 0; ij < layerCounts[m+1]; ij++)
-                        // For each of these edges read the weight from the file
-                        weights[m][jk][ij] = Double.parseDouble(weightsLine[jk * layerCounts[m+1] + ij]);
+                        // If the weights line ran out, use 0 (default double value)
+                        if (weightsLine.hasMoreTokens())
+                            // Else read from the weights line
+                            weights[m][jk][ij] = parseDouble(weightsLine.nextToken());
             }
         }
         catch (IOException ioException)
@@ -306,11 +333,19 @@ public class Perceptron {
             // Iterate over all the test cases
             for (int iterator = 0; iterator < numTestCases; iterator++)
             {
-                // Split the row of text in the file by spaces
-                // (number of inputs in row should equal expected amount)
-                String[] inputsLine = in.readLine().split(" ");
+                // Make sure the next line is not null
+                String textLine = in.readLine();
+                if (textLine == null)
+                    textLine = "";
+
+                // Make a StringTokenizer to read the line
+                StringTokenizer inputsLine = new StringTokenizer(textLine);
+
                 for (int inputIndex = 0; inputIndex < layerCounts[0]; inputIndex++)
-                    inputs[iterator][inputIndex] = Double.parseDouble(inputsLine[inputIndex]);
+                    // If the inputs line ran out, use 0 (default double value)
+                    if (inputsLine.hasMoreTokens())
+                        // Else read from the inputs line
+                        inputs[iterator][inputIndex] = parseDouble(inputsLine.nextToken());
             }
 
             return inputs;
@@ -319,6 +354,81 @@ public class Perceptron {
         {
             ioException.printStackTrace();
             throw new RuntimeException("The inputs file is not formatted properly");
+        }
+    }
+
+    /**
+     * This method can be called by the network handler class in order to
+     * have the pdp network read the output values stored in the given file.
+     *
+     * This method takes the single parameter value outputsFile,
+     * which has all of the outputs for the network stored
+     * in a specific ordering and organization within the file.
+     *
+     * @param outputsFile       The file which holds all of the outputs for the network
+     *
+     * @throws RuntimeException This method throws a runtime exception if anything
+     *                          goes wrong during the file-reading process.
+     *                          This method also prints out the stack trace
+     *                          of the original error.
+     */
+    private double[][] readOutputs(File outputsFile)
+    {
+        try
+        {
+            // BufferedReader can read the inputsFile file
+            BufferedReader in = new BufferedReader(new FileReader(outputsFile));
+
+            // The file is formatted so the first line tells how many test cases there are
+            int numTestCases = Integer.parseInt(in.readLine());
+            int numOutputs = layerCounts[layerCounts.length-1];
+            double[][] outputs = new double[numTestCases][numOutputs];
+
+            // Iterate over all the test cases
+            for (int caseIterator = 0; caseIterator < numTestCases; caseIterator++)
+            {
+                // Make sure the next line is not null
+                String textLine = in.readLine();
+                if (textLine == null)
+                    textLine = "";
+
+                StringTokenizer outputsLine = new StringTokenizer(textLine);
+
+                for (int outputIndex = 0; outputIndex < numOutputs; outputIndex++)
+                    // If the outputs line ran out, use 0 (default double value)
+                    if (outputsLine.hasMoreTokens())
+                        // Else read from the outputs line
+                        outputs[caseIterator][outputIndex] = parseDouble(outputsLine.nextToken());
+            }
+
+            return outputs;
+        }
+        catch (IOException ioException)
+        {
+            ioException.printStackTrace();
+            throw new RuntimeException("The output file is not formatted properly");
+        }
+    }
+
+    /**
+     * This method parses a double from a single string token.
+     * If the token is not a double, then it just returns 0 by default.
+     *
+     * This method takes one String parameter nextToken
+     *
+     * @param nextToken The token to parse
+     *
+     * @return The parsed double, or 0 if the token cannot be parsed
+     */
+    private double parseDouble(String nextToken)
+    {
+        try
+        {
+            return Double.parseDouble(nextToken);
+        }
+        catch (NumberFormatException numberFormatException)
+        {
+            return 0;
         }
     }
 
@@ -335,20 +445,30 @@ public class Perceptron {
      * @return A 2D array of doubles, where each row represents a new test case. The
      *         array rows are sorted in the order that the inputs are given. Each row
      *         of the array will have as many elements as output neurons in the network.
-     *
-     * @throws RuntimeException This method throws a runtime exception if anything
-     *                          goes wrong during input-reading or processing.
-     *                          This method also prints out the stack trace
-     *                          of the original error.
-     *                          An exception is thrown if the given input file is not found,
-     *                          the file is not properly formatted, a given weight is not a
-     *                          double, or not enough inputs are given in the inputs file.
      */
     protected double[][] runNetwork(File inputsFile)
     {
         // Get the inputs from the file
         double[][] inputs = readInputs(inputsFile);
 
+        // Run the network on the inputs
+        return runNetworkOnInputs(inputs);
+    }
+
+    /**
+     * This method runs the network on the given inputs, and
+     * it returns the output of the network on those inputs.
+     *
+     * This method takes exactly 1 parameter, a 2D array of doubles inputs,
+     * which represents the inputs on which to run the network.
+     *
+     * @param inputs The inputs on which to run the network
+     *
+     * @return An array of doubles which represents the
+     *         output of the network for the given set of inputs
+     */
+    private double[][] runNetworkOnInputs(double[][] inputs)
+    {
         // A 2D array is created with enough rows to store all the test cases individually
         double[][] outputs = new double[inputs.length][];
 
@@ -358,8 +478,7 @@ public class Perceptron {
             // Put the input values into the network
             activations[0] = inputs[iterator];
 
-            // For each layer 1 to activations.length-1, calculate
-            // the activation values for the neurons of the layers
+            // Calculate the activation values for all activation layers
             for (int n = 1; n < activations.length; n++)
                 calculateActivations(n);
 
@@ -373,6 +492,48 @@ public class Perceptron {
         }
         // Return the 2D outputs array
         return outputs;
+    }
+
+    /**
+     * This method trains the network
+     *
+     * ADD JAVADOC FOR THIS METHOD
+     *
+     * TODO: (from 9/16/19)
+     *
+     * @param inputsFile
+     * @param outputsFile
+     */
+    protected void trainNetwork(File inputsFile, File outputsFile)
+    {
+        double[][] inputs = readInputs(inputsFile);
+        double[][] outputs = readOutputs(outputsFile);
+        if (inputs.length != outputs.length)
+            throw new IllegalStateException("input and output files don't hold the same number of cases");
+
+        double[][] calculatedOutputs = runNetworkOnInputs(inputs);
+        for (int testCaseIterator = 0; testCaseIterator < calculatedOutputs.length; testCaseIterator++) {
+            double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
+            for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
+                for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+                {
+                    double[] prevNeurons = Arrays.copyOfRange(activations[1],0,layerCounts[1]);
+                    double[] prevWeights = new double[prevNeurons.length];
+                    for (int ijkPrevLayer = 0; ijkPrevLayer < layerCounts[1]; ijkPrevLayer++)
+                        prevWeights[ijkPrevLayer] = weights[1][ijkPrevLayer][i];
+
+                    double activationValueUnbounded = neuronPrevLayerCombinerFunction(prevNeurons,prevWeights);
+                    weightAdjustments[1][j][i] = neuronThresholdFunctionDeriv(activationValueUnbounded);
+                    weightAdjustments[1][j][i] *= neuronPrevLayerCombinerFunctionDeriv(prevNeurons,prevWeights,j,true);
+                    weightAdjustments[1][j][i] *= LAMBDA * (outputs[testCaseIterator][0] - calculatedOutputs[testCaseIterator][0]);
+                }
+
+            /* FINISH THIS SHIT */
+
+            for (int weightLayer = weights.length-1; weightLayer >= 0; weightLayer--) {
+
+            }
+        }
     }
 
     /**
@@ -551,7 +712,7 @@ public class Perceptron {
     private double neuronThresholdFunction(double neuronInput)
     {
         // Currently f(x) = x
-        return neuronInput;
+        return neuronInput; // 1.0/(1.0 + Math.exp(-neuronInput)); // Sigmoid Function
     }
 
     /**
