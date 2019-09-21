@@ -97,7 +97,9 @@ public class Perceptron {
       // Store the layers array
       this.layerCounts = layerCounts;
       // Shorten the layer counts array to exclude the input and output counts
-      int[] innerLayerCounts = Arrays.copyOfRange(layerCounts,1,layerCounts.length - 1);
+      int[] innerLayerCounts = new int[layerCounts.length - 2];
+      for (int innerLayerIterator = 0; innerLayerIterator < innerLayerCounts.length; innerLayerIterator++)
+         innerLayerCounts[innerLayerIterator] = layerCounts[innerLayerIterator + 1];
 
       // Generate the neuron and edge arrays
       generateNeuronsAndEdgesArrays(layerCounts[0],innerLayerCounts,layerCounts[layerCounts.length-1]);
@@ -275,8 +277,7 @@ public class Perceptron {
          BufferedReader w = new BufferedReader(new FileReader(weightsFile));
 
          // Iterate through all the different weights layers
-         for (int m = 0; m < weights.length; m++)
-         {
+         for (int m = 0; m < weights.length; m++) {
             // Make sure the next line is not null
             String textLine = w.readLine();
             if (textLine == null)
@@ -290,11 +291,16 @@ public class Perceptron {
             // Iterate over the neurons in layer m first
             for (int jk = 0; jk < layerCounts[m]; jk++)
                // Then iterate over the neurons in layer m+1
-               for (int ij = 0; ij < layerCounts[m+1]; ij++)
-                  // If the weights line ran out, use 0 (default double value)
+               for (int ij = 0; ij < layerCounts[m + 1]; ij++)
+               {
+                  // If the weights line has more stuff, read it
                   if (weightsLine.hasMoreTokens())
-                     // Else read from the weights line
                      weights[m][jk][ij] = parseDouble(weightsLine.nextToken());
+                  else // Else default to a random double value [0,1)
+                     weights[m][jk][ij] = Math.random();
+
+                  System.out.println("w[" + m + "][" + jk + "][" + ij + "] = " + weights[m][jk][ij]);
+               }
          }
       }
       catch (IOException ioException)
@@ -473,10 +479,10 @@ public class Perceptron {
       double[][] outputs = new double[inputs.length][];
 
       // Iterate over all the test cases
-      for (int iterator = 0; iterator < inputs.length; iterator++)
+      for (int testCaseIterator = 0; testCaseIterator < inputs.length; testCaseIterator++)
       {
          // Put the input values into the network
-         activations[0] = inputs[iterator];
+         activations[0] = inputs[testCaseIterator];
 
          // Calculate the activation values for all activation layers
          for (int n = 1; n < activations.length; n++)
@@ -487,8 +493,12 @@ public class Perceptron {
 
          // Store the values of the output neurons into the 2D outputs array
          double[] activatedNeurons = activations[outputLayerIndex];
-         int countNeurons = layerCounts[outputLayerIndex];
-         outputs[iterator] = Arrays.copyOfRange(activatedNeurons, 0, countNeurons);
+         int countOutputNeurons = layerCounts[outputLayerIndex];
+
+         // Store the values into the outputs array
+         outputs[testCaseIterator] = new double[countOutputNeurons];
+         for (int outputNeuronIterator = 0; outputNeuronIterator < countOutputNeurons; outputNeuronIterator++)
+            outputs[testCaseIterator][outputNeuronIterator] = activatedNeurons[outputNeuronIterator];
       }
       // Return the 2D outputs array
       return outputs;
@@ -520,6 +530,9 @@ public class Perceptron {
       System.out.println();
       System.out.println("weights: " + Arrays.deepToString(weights));
       System.out.println("lambda: " + lambda);
+
+      double[][] calculatedOutputs = runNetworkOnInputs(inputs);
+      System.out.println("error: " + errorCalculator(outputs,calculatedOutputs)[0]);
    }
 
    private void runTrainingStep(double[][] inputs, double[][] outputs)
@@ -531,83 +544,51 @@ public class Perceptron {
       int numTestCases = calculatedOutputs.length;
       for (int testCaseIterator = 0; testCaseIterator < numTestCases; testCaseIterator++)
       {
-         /*
-         System.out.println();
-         System.out.println("test case: " + testCaseIterator);
-         System.out.println(Arrays.deepToString(weights));
-          */
-
          // The weights adjustment array
          double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
          // The error difference for this test case
          double errorDiff = outputs[testCaseIterator][0] - calculatedOutputs[testCaseIterator][0];
 
-         /*
-         System.out.println("case error: " + errorDiff);
-         System.out.println("lambda: " + lambda);
-          */
-
          for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
             for (int i = 0; i < layerCounts[2]; i++) // Output Layer
             {
-               // System.out.println("(m,j,i) = (1," + j + "," + i + ")");
+               int prevLayerLength = layerCounts[1];
+               double activationValueUnbounded = 0;
 
-               double[] prevNeurons = Arrays.copyOfRange(activations[1], 0, layerCounts[1]);
-               double[] prevWeights = new double[prevNeurons.length];
-               for (int ijkPrevLayer = 0; ijkPrevLayer < layerCounts[1]; ijkPrevLayer++)
-                  prevWeights[ijkPrevLayer] = weights[1][ijkPrevLayer][i];
+               // Get the activation value unbounded - Currently Dot Product
+               for (int layerElementsIterator = 0; layerElementsIterator < prevLayerLength; layerElementsIterator++)
+                  activationValueUnbounded += activations[1][layerElementsIterator] * weights[1][layerElementsIterator][i];
 
-               double activationValueUnbounded = neuronPrevLayerCombinerFunction(prevNeurons, prevWeights);
-               //System.out.println("output val: " + activationValueUnbounded);
                // These 2 lines handle this derivative --> d F_i/d W_abc
-               double adjustment = neuronThresholdFunctionDeriv(activationValueUnbounded);
-               //System.out.println("threshold deriv: " + adjustment);
-               adjustment *= neuronPrevLayerCombinerFunctionDeriv(prevNeurons, prevWeights, j, true);
-               //System.out.println("combiner funct deriv: " + adjustment);
+               double adjustment = neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[1][j];
                // Multiply by learning factor and error diff to get delta W
                adjustment *= lambda * errorDiff;
                // Store delta W in array
                weightAdjustments[1][j][i] = adjustment;
-               //System.out.println("total adjustment: " + adjustment);
             }
 
          for (int k = 0; k < layerCounts[0]; k++) // Input Layer
             for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
             {
-               //System.out.println("(m,k,j) = (0," + k + "," + j + ")");
+               int prevLayerLength = layerCounts[0], nextLayerLength = layerCounts[1];
+               double activationValueUnbounded = 0, outputValueUnbounded = 0;
 
-               double[] prevNeurons = Arrays.copyOfRange(activations[0], 0, layerCounts[0]);
-               double[] prevWeights = new double[prevNeurons.length];
-               for (int ijkPrevLayer = 0; ijkPrevLayer < layerCounts[0]; ijkPrevLayer++)
-                  prevWeights[ijkPrevLayer] = weights[0][ijkPrevLayer][j];
+               // Get the activation value unbounded - Currently Dot Product
+               for (int layerElementsIterator = 0; layerElementsIterator < prevLayerLength; layerElementsIterator++)
+                  activationValueUnbounded += activations[0][layerElementsIterator] * weights[0][layerElementsIterator][j];
 
-               double[] nextNeurons = Arrays.copyOfRange(activations[1], 0, layerCounts[1]);
-               double[] nextWeights = new double[nextNeurons.length];
-               for (int ijkNextLayer = 0; ijkNextLayer < layerCounts[1]; ijkNextLayer++)
-                  nextWeights[ijkNextLayer] = weights[1][ijkNextLayer][0];
+               // Get the output value unbounded - Currently Dot Product
+               for (int layerElementsIterator = 0; layerElementsIterator < nextLayerLength; layerElementsIterator++)
+                  outputValueUnbounded += activations[1][layerElementsIterator] * weights[1][layerElementsIterator][0];
 
-               double activationValueUnbounded = neuronPrevLayerCombinerFunction(prevNeurons, prevWeights);
-               double outputValueUnbounded = neuronPrevLayerCombinerFunction(nextNeurons, nextWeights);
-               // These 2 lines handle this derivative --> d f(h_j)/d W_abc
-               double adjustment = neuronThresholdFunctionDeriv(outputValueUnbounded);
-               //System.out.println("step 1: " + adjustment);
-               adjustment *= neuronPrevLayerCombinerFunctionDeriv(nextNeurons, nextWeights, j, false);
-               //System.out.println("step 2: " + adjustment);
-               //System.out.println("next weights: " + Arrays.toString(nextWeights));
-
-               // These 2 lines handle this derivative --> d F_i/d W_abc
-               adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded);
-               //System.out.println("step 3: " + adjustment);
-               adjustment *= neuronPrevLayerCombinerFunctionDeriv(prevNeurons, prevWeights, k, true);
-               //System.out.println("step 4: " + adjustment);
-
+               // Handle this derivative --> d f(h_j)/d W_abc
+               double adjustment = neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][0];
+               // Handle this derivative --> d F_i/d W_abc
+               adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[0][k];
                // Multiply by learning factor and error diff to get delta W
                adjustment *= lambda * errorDiff;
-               //System.out.println("step 5: " + adjustment);
                // Store delta W in array
                weightAdjustments[0][k][j] = adjustment;
-
-               //System.out.println("adjustment: " + adjustment);
             }
 
          // Scaled, Positive Error for this case
@@ -640,8 +621,7 @@ public class Perceptron {
    /**
     *
     */
-   private double[] errorCalculator(double[][] expected, double[][] calculated)
-   {
+   private double[] errorCalculator(double[][] expected, double[][] calculated) {
       if (expected.length != calculated.length || expected.length == 0)
          throw new IllegalArgumentException("The expected and calculated arrays must both have the same " +
                "non-zero number of test cases");
@@ -653,19 +633,16 @@ public class Perceptron {
       double[] errors = new double[expected[0].length];
       for (int outputIterator = 0; outputIterator < errors.length; outputIterator++)
       {
-         double error = 0;
-
-         for (int testCaseIterator = 0; testCaseIterator < expected.length; testCaseIterator++)
-         {
+         for (int testCaseIterator = 0; testCaseIterator < expected.length; testCaseIterator++) {
             double expectedValue = expected[testCaseIterator][outputIterator];
             double calculatedValue = calculated[testCaseIterator][outputIterator];
 
-            double testCaseError = expectedValue - calculatedValue;
+            double testCaseError = expectedValue - calculatedValue; // T0 - F0
+            testCaseError = testCaseError * testCaseError; // (T0 - F0)^2
 
-            error += testCaseError * testCaseError;
+            errors[outputIterator] += testCaseError * testCaseError / 4.0; // ((T0 - F0)^4) / 4
          }
-
-         errors[outputIterator] = error/2;
+         errors[outputIterator] = Math.sqrt(errors[outputIterator]); // SQRT(sum of squares of errors)
       }
 
       return errors;
@@ -692,138 +669,38 @@ public class Perceptron {
       for (int ijk = 0; ijk < layerCounts[layer]; ijk++)
       {
          // All the neurons from the previous layer, stored in an array
-         double[] prevNeurons = Arrays.copyOfRange(activations[prevLayer],0,layerCounts[prevLayer]);
+         double[] prevNeurons = new double[layerCounts[prevLayer]];
+         for (int prevNeuronIterator = 0; prevNeuronIterator < prevNeurons.length; prevNeuronIterator++)
+            prevNeurons[prevNeuronIterator] = activations[prevLayer][prevNeuronIterator];
+
          // All the weights from the previous layer, stored in an array
          double[] prevWeights = new double[prevNeurons.length];
 
          for (int ijkPrevLayer = 0; ijkPrevLayer < layerCounts[prevLayer]; ijkPrevLayer++)
             prevWeights[ijkPrevLayer] = weights[prevLayer][ijkPrevLayer][ijk];
 
-         // The activation value of neuron indexed ijk is calculated
-         activations[layer][ijk] = neuronActivationValueCalculator(prevNeurons,prevWeights);
+         // DEBUG
+         //System.out.print("a[" + layer + "][" + ijk + "] = f(");
+
+         // The activation value of neuron indexed ijk is calculated - Currently Dot Product
+         activations[layer][ijk] = 0;
+         for (int index = 0; index < prevNeurons.length; index++)
+         {
+            activations[layer][ijk] += prevNeurons[index] * prevWeights[index];
+
+            // DEBUG
+            /*
+            System.out.print("a[" + prevLayer + "][" + index + "]w[" + prevLayer + "][" + index  + "][" + ijk + "]");
+            if (index != prevNeurons.length - 1)
+               System.out.print(" + ");
+             */
+         }
+
+         // Apply the threshold function
+         activations[layer][ijk] = neuronThresholdFunction(activations[layer][ijk]);
+         // DEBUG
+         //System.out.println(")");
       }
-   }
-
-   /**
-    * This method calculates how all the neurons
-    * from the previous layer are combined with their weights
-    * in order to for the input for the next layer's neuron.
-    * It then applies the threshold function to that input
-    * in order to calculate the activation value for the
-    * currently processing neuron.
-    *
-    * This method takes two parameters (neurons and weights),
-    * two arrays which hold the neurons of the previous layer
-    * and the weights of the edges which connect those neurons
-    * to the target neuron whose input is being calculated.
-    *
-    * @param neurons   The neurons of the previous layer
-    * @param weights The weights of the edges which connect
-    *                the neurons (from neurons) to the target neuron
-    *
-    * @return This method returns the neuron's input bounded by the
-    *         threshold function. It calculates the neuron's input
-    *         via the neuronPrevLayerCombinerFunction(...) method.
-    */
-   private double neuronActivationValueCalculator(double[] neurons, double[] weights)
-   {
-      double neuronInput = neuronPrevLayerCombinerFunction(neurons,weights);
-      return neuronThresholdFunction(neuronInput);
-   }
-
-   /**
-    * This method calculates how all the neurons
-    * from the previous layer are combined with their weights
-    * in order to for the input for the next layer's neuron.
-    *
-    * This method takes two parameters (neurons and weights),
-    * two arrays which hold the neurons of the previous layer
-    * and the weights of the edges which connect those neurons
-    * to the target neuron whose input is being calculated.
-    *
-    * @param neurons   The neurons of the previous layer
-    * @param weights The weights of the edges which connect
-    *                the neurons (from neurons) to the target neuron
-    *
-    * @return This method returns a combination of the neurons
-    *         and weights arrays which a neuron can use as its
-    *         input for the threshold function.
-    *
-    * @throws IllegalArgumentException This method throws an IllegalArgumentException
-    *                                  if the neurons and weights arrays passed as
-    *                                  parameters don't have the same length.
-    */
-   private double neuronPrevLayerCombinerFunction(double[] neurons, double[] weights)
-   {
-      // if the neurons and weights arrays passed as parameters don't have the same length
-      if (neurons.length != weights.length)
-         throw new IllegalArgumentException("neurons and weights arrays don't have equal lengths");
-
-      // Currently Dot Product
-      double input = 0;
-
-      for (int index = 0; index < neurons.length; index++)
-         input += neurons[index] * weights[index];
-
-      return input;
-   }
-
-   /**
-    * This method calculates the derivative of how all the neurons
-    * from the previous layer are combined with their weights
-    * in order to for the input for the next layer's neuron.
-    *
-    * This method takes four parameters (neurons, weights,
-    * index, and isWeight). neurons and weights are two arrays
-    * which hold the neurons of the previous layer and
-    * the weights of the edges which connect those neurons
-    * to the target neuron whose input is being calculated.
-    * index refers to the index of the weight or neuron with
-    * respect to which this method is taking the derivative.
-    * isWeight refers to whether the index is for the weight
-    * or the neuron at with the given index.
-    *
-    * @param neurons    The neurons of the previous layer
-    * @param weights  The weights of the edges which connect
-    *                 the neurons (from neurons) to the target neuron
-    * @param index    The index of the element with respect to which
-    *                 this method is taking the derivative
-    * @param isWeight This boolean is true if the element wrt which
-    *                 the derivative is being taken is a weight,
-    *                 and false if the element is a neuron.
-    *                 The reason functionality for both is included
-    *                 is so that this method can also be used for the
-    *                 derivatives required for the edges present in the
-    *                 inner layers (closer to input layer) of the network.
-    *
-    * @return This method returns the value of the derivative of the
-    *         previous layer combiner function taken with respect to
-    *         the element (either edge or neuron) at the given index.
-    *
-    * @throws IllegalArgumentException This method throws an IllegalArgumentException
-    *                                  if the neurons and weights arrays passed as
-    *                                  parameters don't have the same length.
-    *                                  It also throws an IllegalArgumentException if
-    *                                  the index passed is not a valid index in the
-    *                                  neurons/weights array(s) passed as parameters.
-    */
-   private double neuronPrevLayerCombinerFunctionDeriv(double[] neurons, double[] weights, int index, boolean isWeight)
-   {
-      // if the neurons and weights arrays passed as parameters don't have the same length
-      if (neurons.length != weights.length)
-         throw new IllegalArgumentException("neurons and weights arrays don't have equal lengths");
-
-      // if the index passed is not a valid index in the neurons/weights array(s)
-      if (index < 0 || index >= neurons.length)
-         throw new IllegalArgumentException("index given is not in the valid range for indices");
-
-      /* For the dot product combination, the derivative returns the coefficient: */
-
-      // if index isWeight: return neurons[index] (weights coefficient)
-      if (isWeight)
-         return neurons[index];
-      // else (! isWeight): return weights[index] (neurons coefficient)
-      return weights[index];
    }
 
    /**
@@ -846,8 +723,11 @@ public class Perceptron {
     */
    private double neuronThresholdFunction(double neuronInput)
    {
-      // Currently f(x) = x
-      return neuronInput; // 1.0/(1.0 + Math.exp(-neuronInput)); // Sigmoid Function
+      // f(x) = x
+      return neuronInput;
+
+      // f(x) = Sigmoid Function
+      //return 1.0 / (1.0 + Math.exp(-neuronInput));
    }
 
    /**
@@ -870,7 +750,13 @@ public class Perceptron {
     */
    private double neuronThresholdFunctionDeriv(double neuronInput)
    {
-      // Currently D(f(x)) = D(x) = 1
+      // f(x) = x
       return 1;
+
+      // f(x) = Sigmoid Function
+      /*
+      double sigmoidValue = neuronThresholdFunction(neuronInput);
+      return sigmoidValue * (1.0 - sigmoidValue);
+       */
    }
 }
