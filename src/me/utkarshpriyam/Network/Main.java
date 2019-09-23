@@ -13,7 +13,8 @@ import java.util.Arrays;
  * @author Utkarsh Priyam
  * @version 9/4/19
  */
-public class Main {
+public class Main
+{
    /**
     * This String constant represents the file path to
     * where the files are stored.
@@ -25,7 +26,7 @@ public class Main {
     * (ie The outermost folder of the project)
     * From there, follow the relative file path to the files folder.
     */
-   private static final String FILE_DIRECTORY = "./src/me/utkarshpriyam/Network/files/";
+   private static final String FILE_DIRECTORY = "files/";
 
    /**
     * This is the public static void main(...) method that
@@ -37,7 +38,8 @@ public class Main {
     * @param args A 1D array of Strings that holds any additional
     *             parameters the method might need in order to run.
     */
-   public static void main(String[] args) {
+   public static void main(String[] args)
+   {
       // Read all 3 files
       File weights = new File(FILE_DIRECTORY + "weights.txt");
       File inputs = new File(FILE_DIRECTORY + "inputs.txt");

@@ -297,7 +297,7 @@ public class Perceptron {
                   if (weightsLine.hasMoreTokens())
                      weights[m][jk][ij] = parseDouble(weightsLine.nextToken());
                   else // Else default to a random double value [0,1)
-                     weights[m][jk][ij] = Math.random();
+                     weights[m][jk][ij] = random(0,2);
 
                   System.out.println("w[" + m + "][" + jk + "][" + ij + "] = " + weights[m][jk][ij]);
                }
@@ -308,6 +308,17 @@ public class Perceptron {
          ioException.printStackTrace();
          throw new RuntimeException("The weights file is not formatted properly");
       }
+   }
+
+   /**
+    * Generate a number uniformly at random in the interval [low,high).
+    * @param low
+    * @param high
+    * @return
+    */
+   private double random(double low, double high)
+   {
+      return (high - low) * Math.random() + low;
    }
 
    /**
@@ -470,7 +481,7 @@ public class Perceptron {
     *
     * @param inputs The inputs on which to run the network
     *
-    * @return An array of doubles which represents the
+    * @return A 2D array of doubles which represents the
     *         output of the network for the given set of inputs
     */
    private double[][] runNetworkOnInputs(double[][] inputs)
@@ -505,6 +516,40 @@ public class Perceptron {
    }
 
    /**
+    * This method runs the network on the given inputs, and
+    * it returns the output of the network on those inputs.
+    *
+    * This method takes exactly 1 parameter, a 1D array of doubles inputs,
+    * which represents the inputs on which to run the network.
+    *
+    * @param inputs The inputs on which to run the network
+    *
+    * @return A 1D array of doubles which represents the
+    *         output of the network for the given set of inputs
+    */
+   private double[] runNetworkOnInputs(double[] inputs)
+   {
+      // A 1D array to hold the outputs
+      double[] outputs;
+
+      // Put the input values into the network
+      activations[0] = inputs;
+
+      // Calculate the activation values for all activation layers
+      for (int n = 1; n < activations.length; n++)
+         calculateActivations(n);
+
+      // Return the outputs array - Last row of activations array
+      double[] calculatedOutputs = activations[activations.length - 1];
+      outputs = new double[calculatedOutputs.length];
+
+      for (int index = 0; index < calculatedOutputs.length; index++)
+         outputs[index] = calculatedOutputs[index];
+
+      return outputs;
+   }
+
+   /**
     * This method trains the network
     *
     * ADD JAVADOC FOR THIS METHOD
@@ -524,7 +569,7 @@ public class Perceptron {
       System.out.println("inputs: " + Arrays.deepToString(inputs));
       System.out.println("outputs: " + Arrays.deepToString(outputs));
 
-      for (int i = 0; i < 100; i++)
+      for (int i = 0; i < 1000000; i++)
          runTrainingStep(inputs,outputs);
 
       System.out.println();
@@ -541,9 +586,12 @@ public class Perceptron {
          throw new RuntimeException("training currently only works for M-N-1 networks");
 
       double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-      int numTestCases = calculatedOutputs.length;
+      int numTestCases = outputs.length;
       for (int testCaseIterator = 0; testCaseIterator < numTestCases; testCaseIterator++)
       {
+         // Run network on test case to store activation values into array
+         runNetworkOnInputs(inputs[testCaseIterator]);
+
          // The weights adjustment array
          double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
          // The error difference for this test case
@@ -583,12 +631,15 @@ public class Perceptron {
 
                // Handle this derivative --> d f(h_j)/d W_abc
                double adjustment = neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][0];
+               //System.out.println("weights: " + weights[1][j][0]);
                // Handle this derivative --> d F_i/d W_abc
                adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[0][k];
+               //System.out.println("activations: " + activations[0][k]);
                // Multiply by learning factor and error diff to get delta W
                adjustment *= lambda * errorDiff;
                // Store delta W in array
                weightAdjustments[0][k][j] = adjustment;
+               //System.out.println("weightsAdjustment[0][" + k + "][" + j + "]: " + weightAdjustments[0][k][j]);
             }
 
          // Scaled, Positive Error for this case
