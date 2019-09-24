@@ -46,6 +46,7 @@ public class Main
       File outputs = new File(FILE_DIRECTORY + "outputs.txt");
 
       // Create a new Perceptron with the specified dimensions
+
       Perceptron pdp = new Perceptron(new int[] {2,2,1});
 
       // Read the weights for the network from the file
@@ -67,5 +68,23 @@ public class Main
       // For now, simply print out the output arrays
       for (double[] calculatedOutput: calculatedOutputs)
          System.out.println(Arrays.toString(calculatedOutput));
+   }
+
+   /**
+    *
+    * @param nextToken
+    * @param defaultValue
+    * @return
+    */
+   private int parseInt(String nextToken, int defaultValue)
+   {
+      try
+      {
+         return Integer.parseInt(nextToken);
+      }
+      catch (NumberFormatException numberFormatException)
+      {
+         return defaultValue;
+      }
    }
 }

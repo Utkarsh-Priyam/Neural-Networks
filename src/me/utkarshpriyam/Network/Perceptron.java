@@ -1,6 +1,5 @@
 package me.utkarshpriyam.Network;
 
-import java.awt.*;
 import java.io.*;
 import java.util.*;
 
@@ -569,7 +568,7 @@ public class Perceptron {
       System.out.println("inputs: " + Arrays.deepToString(inputs));
       System.out.println("outputs: " + Arrays.deepToString(outputs));
 
-      for (int i = 0; i < 1000000; i++)
+      for (int i = 0; i < 10; i++)
          runTrainingStep(inputs,outputs);
 
       System.out.println();
@@ -643,7 +642,8 @@ public class Perceptron {
             }
 
          // Scaled, Positive Error for this case
-         double caseError = errorCalculator(outputs,calculatedOutputs)[0];
+         double caseError = errorDiff * errorDiff / 2.0;
+         //errorCalculator(outputs,calculatedOutputs)[0];
 
          for (int m = 0; m < weights.length; m++)
             for (int jk = 0; jk < layerCounts[m]; jk++)
@@ -651,7 +651,9 @@ public class Perceptron {
                   weights[m][jk][ij] += weightAdjustments[m][jk][ij];
 
          double[][] newCalculatedOutputs = runNetworkOnInputs(inputs);
-         double newCaseError = errorCalculator(outputs,newCalculatedOutputs)[0];
+         double newErrorDiff = outputs[testCaseIterator][0] - newCalculatedOutputs[testCaseIterator][0];
+         double newCaseError = newErrorDiff * newErrorDiff / 2.0;
+         //errorCalculator(outputs,newCalculatedOutputs)[0];
 
          if (newCaseError <= caseError)
          {
@@ -808,6 +810,6 @@ public class Perceptron {
       /*
       double sigmoidValue = neuronThresholdFunction(neuronInput);
       return sigmoidValue * (1.0 - sigmoidValue);
-       */
+      */
    }
 }
