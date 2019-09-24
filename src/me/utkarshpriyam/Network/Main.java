@@ -52,8 +52,11 @@ public class Main
       // Read the weights for the network from the file
       pdp.readWeights(weights);
 
+      // Calculated Outputs
+      double[][] calculatedOutputs;
+
       // Run the network on all the inputs (from the file)
-      double[][] calculatedOutputs = pdp.runNetwork(inputs);
+      calculatedOutputs = pdp.runNetwork(inputs);
 
       // For now, simply print out the output arrays
       for (double[] calculatedOutput: calculatedOutputs)
@@ -71,6 +74,7 @@ public class Main
    }
 
    /**
+    * TODO (9/24/19) JavaDoc here
     *
     * @param nextToken
     * @param defaultValue
@@ -82,7 +86,7 @@ public class Main
       {
          return Integer.parseInt(nextToken);
       }
-      catch (NumberFormatException numberFormatException)
+      catch (NumberFormatException ignored)
       {
          return defaultValue;
       }
