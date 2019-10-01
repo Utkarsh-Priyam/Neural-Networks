@@ -1,0 +1,7 @@
+train
+files/inputs.txt
+files/outputs.txt
+files/weights.txt
+files/weightDump.txt
+files/outputDump.txt
+files/otherDump.txt

@@ -1,7 +1,7 @@
 package me.utkarshpriyam.Network;
 
-import java.io.File;
-import java.util.Arrays;
+import java.io.*;
+import java.util.StringTokenizer;
 
 /**
  * This is the main class which will run the network
@@ -16,19 +16,6 @@ import java.util.Arrays;
 public class Main
 {
    /**
-    * This String constant represents the file path to
-    * where the files are stored.
-    *
-    * Update this file path if the files given are stored
-    * in a different context to the one provided here.
-    *
-    * The . refers to the "root" folder for the java program.
-    * (ie The outermost folder of the project)
-    * From there, follow the relative file path to the files folder.
-    */
-   private static final String FILE_DIRECTORY = "files/";
-
-   /**
     * This is the public static void main(...) method that
     * will run the network until an interface is created
     * instead.
@@ -40,37 +27,141 @@ public class Main
     */
    public static void main(String[] args)
    {
+      BufferedReader inputStreamReader = new BufferedReader(new InputStreamReader(System.in));
+
+      String runType, inputFilePath, outputsFilePath;
+      String weightsFilePath, weightDumpPath, outputDumpPath, otherDumpPath;
+      try
+      {
+         System.out.println("Enter the file path to the file configuration file");
+         String fileConfigPath = inputStreamReader.readLine();
+         File fileConfigFile = new File(fileConfigPath);
+         BufferedReader fileConfigReader = new BufferedReader(new FileReader(fileConfigFile));
+
+         // Required
+         runType = fileConfigReader.readLine();
+         inputFilePath = fileConfigReader.readLine();
+         outputsFilePath = fileConfigReader.readLine();
+
+         // Not Required
+         weightsFilePath = fileConfigReader.readLine();
+         weightDumpPath = fileConfigReader.readLine();
+         outputDumpPath = fileConfigReader.readLine();
+         otherDumpPath = fileConfigReader.readLine();
+      }
+      catch (IOException ioException)
+      {
+         System.out.println("The file configuration file was missing information, badly formatted, or missing");
+         ioException.printStackTrace();
+         return;
+      }
+
+      String networkStructure, lambdaConfig, randomWeightBounds, useRaggedArrays;
+      try
+      {
+         System.out.println("Enter the file path to the network configuration file");
+         String networkStructureFile = inputStreamReader.readLine();
+         File fileConfigFile = new File(networkStructureFile);
+         BufferedReader fileConfigReader = new BufferedReader(new FileReader(fileConfigFile));
+
+         networkStructure = fileConfigReader.readLine();
+         lambdaConfig = fileConfigReader.readLine();
+         randomWeightBounds = fileConfigReader.readLine();
+         useRaggedArrays = fileConfigReader.readLine();
+      }
+      catch (IOException ioException)
+      {
+         System.out.println("The network configuration file was missing information, badly formatted, or missing");
+         ioException.printStackTrace();
+         return;
+      }
+
       // Read all 3 files
-      File weights = new File(FILE_DIRECTORY + "weights.txt");
-      File inputs = new File(FILE_DIRECTORY + "inputs.txt");
-      File outputs = new File(FILE_DIRECTORY + "outputs.txt");
+      File weightsFile = new File(weightsFilePath);
+      File inputsFile = new File(inputFilePath);
+      File outputsFile = new File(outputsFilePath);
 
       // Create a new Perceptron with the specified dimensions
+      String[] networkConfig = networkStructure.split("-");
+      int[] networkDimensions = new int[networkConfig.length];
+      for (int networkLayerIndex = 0; networkLayerIndex < networkConfig.length; networkLayerIndex++)
+         networkDimensions[networkLayerIndex] = parseInt(networkConfig[networkLayerIndex],0);
+      boolean useRagged = useRaggedArrays.equals("true");
+      Perceptron pdp = new Perceptron(networkDimensions,useRagged);
 
-      Perceptron pdp = new Perceptron(new int[] {2,2,1});
+      // Load lambda configuration information
+      StringTokenizer lambdaConfigTokenizer = new StringTokenizer(lambdaConfig);
+      double[] lambdaConfigurations = new double[4];
+      // Default 0 if missing (in most cases will simply prevent training the network)
+      for (int i = 0; i < lambdaConfigurations.length; i++)
+         lambdaConfigurations[i] = parseDouble(lambdaConfigTokenizer.nextToken(),0);
+      pdp.loadLambdaConfig(lambdaConfigurations);
 
       // Read the weights for the network from the file
-      pdp.readWeights(weights);
+      StringTokenizer randomWeightBoundsTokenizer = new StringTokenizer(randomWeightBounds);
+      int minWeight = parseInt(randomWeightBoundsTokenizer.nextToken(),0);
+      int maxWeight = parseInt(randomWeightBoundsTokenizer.nextToken(),0);
+      pdp.readWeights(weightsFile,minWeight,maxWeight);
 
       // Calculated Outputs
       double[][] calculatedOutputs;
+      if (runType.equals("run"))
+      {
+         calculatedOutputs = pdp.runNetwork(inputsFile);
+      }
+      else if (runType.equals("train"))
+      {
+         // Train network
+         pdp.trainNetwork(inputsFile,outputsFile);
 
-      // Run the network on all the inputs (from the file)
-      calculatedOutputs = pdp.runNetwork(inputs);
+         calculatedOutputs = pdp.runNetwork(inputsFile);
+      }
+      else if (runType.equals("test"))
+      {
+         // Nothing done here right now
+         calculatedOutputs = new double[0][0];
+      }
+      else
+      {
+         System.out.println(runType + " is not a valid run type for this network.");
+         System.out.println("The only valid run types are \"run\", \"train\", and \"test\".");
+         return;
+      }
 
-      // For now, simply print out the output arrays
-      for (double[] calculatedOutput: calculatedOutputs)
-         System.out.println(Arrays.toString(calculatedOutput));
+      try
+      {
+         double[][][] finalWeights = pdp.weights;
+         PrintWriter weightsDumpWriter = new PrintWriter(new BufferedWriter(new FileWriter(weightDumpPath)));
+         for (int weightLayerIndex = 0; weightLayerIndex < finalWeights.length; weightLayerIndex++)
+         {
+            int prevLayerNeuronCount = networkDimensions[weightLayerIndex];
+            int nextLayerNeuronCount = networkDimensions[weightLayerIndex + 1];
 
-      // Train network
-      pdp.trainNetwork(inputs,outputs);
+            for (int prevLayerElementIndex = 0; prevLayerElementIndex < prevLayerNeuronCount; prevLayerElementIndex++)
+               for (int nextLayerElementIndex = 0; nextLayerElementIndex < nextLayerNeuronCount; nextLayerElementIndex++)
+               {
+                  double weightValue = finalWeights[weightLayerIndex][prevLayerElementIndex][nextLayerElementIndex];
+                  weightsDumpWriter.print(weightValue + " ");
+               }
+            weightsDumpWriter.println();
+         }
+         weightsDumpWriter.close();
 
-      // Run the network on all the inputs (from the file)
-      calculatedOutputs = pdp.runNetwork(inputs);
+         PrintWriter outputsDumpWriter = new PrintWriter(new BufferedWriter(new FileWriter(outputDumpPath)));
+         for (double[] testCaseOutputs : calculatedOutputs)
+         {
+            for (double singularOutput : testCaseOutputs)
+               outputsDumpWriter.print(singularOutput + " ");
 
-      // For now, simply print out the output arrays
-      for (double[] calculatedOutput: calculatedOutputs)
-         System.out.println(Arrays.toString(calculatedOutput));
+            outputsDumpWriter.println();
+         }
+         outputsDumpWriter.close();
+      }
+      catch (IOException ioException)
+      {
+         System.out.println("Uncontrolled IOException encountered while logging data to dump files");
+         ioException.printStackTrace();
+      }
    }
 
    /**
@@ -80,11 +171,30 @@ public class Main
     * @param defaultValue
     * @return
     */
-   private int parseInt(String nextToken, int defaultValue)
+   private static int parseInt(String nextToken, int defaultValue)
    {
       try
       {
          return Integer.parseInt(nextToken);
+      }
+      catch (NumberFormatException ignored)
+      {
+         return defaultValue;
+      }
+   }
+
+   /**
+    * TODO (10/1/19) JavaDoc here
+    *
+    * @param nextToken
+    * @param defaultValue
+    * @return
+    */
+   private static double parseDouble(String nextToken, double defaultValue)
+   {
+      try
+      {
+         return Double.parseDouble(nextToken);
       }
       catch (NumberFormatException ignored)
       {

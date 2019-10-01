@@ -47,7 +47,7 @@ public class Perceptron {
     * neuron and edge arrays as a full block (which has wasted space)
     * or as a ragged array (no wasted space)
     */
-   private static final boolean GENERATE_RAGGED_ARRAYS = false;
+   private final boolean GENERATE_RAGGED_ARRAYS;
 
    /**
     * This double value is the learning factor for this pdp network.
@@ -55,17 +55,28 @@ public class Perceptron {
     * network adjusts its weights (whether it takes big or small
     * steps in the "downhill direction" (method of gradient descent).
     */
-   private double lambda = 0.1;
+   private double lambda;
 
    /**
     * TODO: (9/24/19) Add JavaDoc here
     */
-   private final double lambdaChange = 1.01;
+   private double lambdaChange;
 
    /**
     * TODO: (9/24/19) Add JavaDoc here
     */
-   private final double lambdaMaxCap = 1.5, lambdaMinCap = 0;
+   private double lambdaMinCap, lambdaMaxCap;
+
+   /**
+    * TODO: (10/1/19) Add JavaDoc here
+    */
+   void loadLambdaConfig(double[] lambdaConfig)
+   {
+      lambda = lambdaConfig[0];
+      lambdaChange = lambdaConfig[1];
+      lambdaMinCap = lambdaConfig[2];
+      lambdaMaxCap = lambdaConfig[3];
+   }
 
    /**
     * The layerCounts array stores the number of neurons
@@ -80,7 +91,7 @@ public class Perceptron {
     */
    private int[] layerCounts;
    private double[][] activations;
-   private double[][][] weights;
+   double[][][] weights;
 
    /**
     * This is the first constructor for the Perceptron class.
@@ -94,8 +105,10 @@ public class Perceptron {
     *                                  if the parameter passed does not have at least
     *                                  2 values (for the input and output layers).
     */
-   public Perceptron(int[] layerCounts)
+   public Perceptron(int[] layerCounts, boolean useRaggedArrays)
    {
+      GENERATE_RAGGED_ARRAYS = useRaggedArrays;
+
       // Throw an IllegalArgumentException if not enough layers (2) are passed
       if (layerCounts.length < 2)
          throw new IllegalArgumentException("not enough layers in network");
@@ -126,8 +139,10 @@ public class Perceptron {
     *                          neurons in each hidden layer of the network
     * @param numOutputs        The number of neurons in the output layer of the network
     */
-   public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs)
+   public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs, boolean useRaggedArrays)
    {
+      GENERATE_RAGGED_ARRAYS = useRaggedArrays;
+
       // Adjust the inputs to ensure that every layer has at least 1 neuron
       if (numInputs < 1)
          numInputs = 1;
@@ -278,7 +293,7 @@ public class Perceptron {
     *                          This method also prints out the stack trace
     *                          of the original error.
     */
-   void readWeights(File weightsFile)
+   void readWeights(File weightsFile, double minRandomWeight, double maxRandomWeight)
    {
       try
       {
@@ -302,13 +317,12 @@ public class Perceptron {
                // Then iterate over the neurons in layer m+1
                for (int ij = 0; ij < layerCounts[m + 1]; ij++)
                {
+                  double randomValue = random(minRandomWeight,maxRandomWeight);
                   // If the weights line has more stuff, read it
                   if (weightsLine.hasMoreTokens())
-                     weights[m][jk][ij] = parseDouble(weightsLine.nextToken());
+                     weights[m][jk][ij] = parseDouble(weightsLine.nextToken(),randomValue);
                   else // Else default to a random double value in the range [low,high)
-                     weights[m][jk][ij] = random(0,2);
-
-                  System.out.println("w[" + m + "][" + jk + "][" + ij + "] = " + weights[m][jk][ij]);
+                     weights[m][jk][ij] = randomValue;
                }
          }
       }
@@ -374,7 +388,7 @@ public class Perceptron {
                // If the inputs line ran out, use 0 (default double value)
                if (inputsLine.hasMoreTokens())
                   // Else read from the inputs line
-                  inputs[iterator][inputIndex] = parseDouble(inputsLine.nextToken());
+                  inputs[iterator][inputIndex] = parseDouble(inputsLine.nextToken(),0);
          }
 
          return inputs;
@@ -427,7 +441,7 @@ public class Perceptron {
                // If the outputs line ran out, use 0 (default double value)
                if (outputsLine.hasMoreTokens())
                   // Else read from the outputs line
-                  outputs[caseIndex][outputIndex] = parseDouble(outputsLine.nextToken());
+                  outputs[caseIndex][outputIndex] = parseDouble(outputsLine.nextToken(),0);
          }
 
          return outputs;
@@ -451,7 +465,7 @@ public class Perceptron {
     *
     * @return The parsed double, or 0 if the token cannot be parsed
     */
-   private double parseDouble(String nextToken)
+   private double parseDouble(String nextToken, double defaultValue)
    {
       try
       {
@@ -459,7 +473,7 @@ public class Perceptron {
       }
       catch (NumberFormatException numberFormatException)
       {
-         return 0;
+         return defaultValue;
       }
    }
 
@@ -564,14 +578,18 @@ public class Perceptron {
    }
 
    /**
-    * This method trains the network
+    * This method trains the network.
+    * It takes in 2 files which represent the input and output files.
+    * The method reads the inputs and outputs from the file and begins training.
+    * The training process currently caps out at 100k iterations (eventually configurable).
+    * The process also terminates if the lambda drops below a minimum cap (suggested to remain 0).
     *
-    * ADD JAVADOC FOR THIS METHOD
+    * To train, the process using gradient descent to find the minimum of the n-dimensional surface.
     *
-    * TODO (9/16/19) JavaDoc
+    * Currently the training gradient descent only works for A-B-1 networks.
     *
-    * @param inputsFile
-    * @param outputsFile
+    * @param inputsFile    The inputs file
+    * @param outputsFile   The outputs file
     */
    protected void trainNetwork(File inputsFile, File outputsFile)
    {
@@ -580,11 +598,105 @@ public class Perceptron {
       if (inputs.length != outputs.length)
          throw new IllegalStateException("input and output files don't hold the same number of cases");
 
-      System.out.println("inputs: " + Arrays.deepToString(inputs));
-      System.out.println("outputs: " + Arrays.deepToString(outputs));
+      boolean continueTraining = true;
+      int iterationCounter = 0;
+      while (continueTraining)
+      {
+         if (layerCounts.length != 3)
+            throw new RuntimeException("training currently only works for A-B-1 networks");
 
-      for (int i = 0; i < 100000; i++)
-         runTrainingStep(inputs,outputs);
+         double[][] calculatedOutputs = runNetworkOnInputs(inputs);
+         int numTestCases = outputs.length;
+         for (int testCaseIndex = 0; testCaseIndex < numTestCases; testCaseIndex++)
+         {
+            // Run network on test case to store activation values into array
+            runNetworkOnInputs(inputs[testCaseIndex]);
+
+            // The weights adjustment array
+            double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
+            // The error difference for this test case
+            double errorDiff = outputs[testCaseIndex][0] - calculatedOutputs[testCaseIndex][0];
+
+            for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
+               for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+               {
+                  int prevLayerLength = layerCounts[1];
+                  double activationValueUnbounded = 0;
+
+                  // Get the activation value unbounded - Currently Dot Product
+                  for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
+                     activationValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][i];
+
+                  // These 2 lines handle this derivative --> d F_i/d W_abc
+                  double adjustment = neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[1][j];
+                  // Multiply by learning factor and error diff to get delta W
+                  adjustment *= lambda * errorDiff;
+                  // Store delta W in array
+                  weightAdjustments[1][j][i] = adjustment;
+               }
+
+            for (int k = 0; k < layerCounts[0]; k++) // Input Layer
+               for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
+               {
+                  int prevLayerLength = layerCounts[0], nextLayerLength = layerCounts[1];
+                  double activationValueUnbounded = 0, outputValueUnbounded = 0;
+
+                  // Get the activation value unbounded - Currently Dot Product
+                  for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
+                     activationValueUnbounded += activations[0][layerElementsIndex] * weights[0][layerElementsIndex][j];
+
+                  // Get the output value unbounded - Currently Dot Product
+                  for (int layerElementsIndex = 0; layerElementsIndex < nextLayerLength; layerElementsIndex++)
+                     outputValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][0];
+
+                  // Handle this derivative --> d f(h_j)/d W_abc
+                  double adjustment = neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][0];
+                  // Handle this derivative --> d F_i/d W_abc
+                  adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[0][k];
+                  // Multiply by learning factor and error diff to get delta W
+                  adjustment *= lambda * errorDiff;
+                  // Store delta W in array
+                  weightAdjustments[0][k][j] = adjustment;
+               }
+
+            // Scaled, Positive Error for this case
+            double caseError = errorDiff * errorDiff / 2.0;
+
+            for (int m = 0; m < weights.length; m++)
+               for (int jk = 0; jk < layerCounts[m]; jk++)
+                  for (int ij = 0; ij < layerCounts[m+1]; ij++)
+                     weights[m][jk][ij] += weightAdjustments[m][jk][ij];
+
+            double[][] newCalculatedOutputs = runNetworkOnInputs(inputs);
+            double newErrorDiff = outputs[testCaseIndex][0] - newCalculatedOutputs[testCaseIndex][0];
+            double newCaseError = newErrorDiff * newErrorDiff / 2.0;
+
+            if (newCaseError < caseError)
+            {
+               // Cap lambda (learning factor) to lambdaMaxCap
+               if (lambda < lambdaMaxCap)
+                  lambda *= lambdaChange;
+               calculatedOutputs = newCalculatedOutputs;
+            }
+            else
+            {
+               lambda /= lambdaChange;
+               for (int m = 0; m < weights.length; m++)
+                  for (int jk = 0; jk < layerCounts[m]; jk++)
+                     for (int ij = 0; ij < layerCounts[m+1]; ij++)
+                        weights[m][jk][ij] -= weightAdjustments[m][jk][ij];
+            }
+         }
+
+         if (lambda < lambdaMinCap)
+         {
+            System.out.println("Lambda went below minimum lambda capacity: " + lambda + " < " + lambdaMinCap);
+            continueTraining = false;
+         }
+         iterationCounter++;
+         if (iterationCounter >= 100000)
+            continueTraining = false;
+      }
 
       System.out.println();
       System.out.println("weights: " + Arrays.deepToString(weights));
@@ -592,100 +704,7 @@ public class Perceptron {
 
       double[][] calculatedOutputs = runNetworkOnInputs(inputs);
       System.out.println("error: " + errorCalculator(outputs,calculatedOutputs)[0]);
-   }
-
-   private void runTrainingStep(double[][] inputs, double[][] outputs)
-   {
-      if (layerCounts.length != 3)
-         throw new RuntimeException("training currently only works for A-B-1 networks");
-
-      double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-      int numTestCases = outputs.length;
-      for (int testCaseIndex = 0; testCaseIndex < numTestCases; testCaseIndex++)
-      {
-         // Run network on test case to store activation values into array
-         runNetworkOnInputs(inputs[testCaseIndex]);
-
-         // The weights adjustment array
-         double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
-         // The error difference for this test case
-         double errorDiff = outputs[testCaseIndex][0] - calculatedOutputs[testCaseIndex][0];
-
-         for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
-            for (int i = 0; i < layerCounts[2]; i++) // Output Layer
-            {
-               int prevLayerLength = layerCounts[1];
-               double activationValueUnbounded = 0;
-
-               // Get the activation value unbounded - Currently Dot Product
-               for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
-                  activationValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][i];
-
-               // These 2 lines handle this derivative --> d F_i/d W_abc
-               double adjustment = neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[1][j];
-               // Multiply by learning factor and error diff to get delta W
-               adjustment *= lambda * errorDiff;
-               // Store delta W in array
-               weightAdjustments[1][j][i] = adjustment;
-            }
-
-         for (int k = 0; k < layerCounts[0]; k++) // Input Layer
-            for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
-            {
-               int prevLayerLength = layerCounts[0], nextLayerLength = layerCounts[1];
-               double activationValueUnbounded = 0, outputValueUnbounded = 0;
-
-               // Get the activation value unbounded - Currently Dot Product
-               for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
-                  activationValueUnbounded += activations[0][layerElementsIndex] * weights[0][layerElementsIndex][j];
-
-               // Get the output value unbounded - Currently Dot Product
-               for (int layerElementsIndex = 0; layerElementsIndex < nextLayerLength; layerElementsIndex++)
-                  outputValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][0];
-
-               // Handle this derivative --> d f(h_j)/d W_abc
-               double adjustment = neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][0];
-               //System.out.println("weights: " + weights[1][j][0]);
-               // Handle this derivative --> d F_i/d W_abc
-               adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[0][k];
-               //System.out.println("activations: " + activations[0][k]);
-               // Multiply by learning factor and error diff to get delta W
-               adjustment *= lambda * errorDiff;
-               // Store delta W in array
-               weightAdjustments[0][k][j] = adjustment;
-               //System.out.println("weightsAdjustment[0][" + k + "][" + j + "]: " + weightAdjustments[0][k][j]);
-            }
-
-         // Scaled, Positive Error for this case
-         double caseError = errorDiff * errorDiff / 2.0;
-         //errorCalculator(outputs,calculatedOutputs)[0];
-
-         for (int m = 0; m < weights.length; m++)
-            for (int jk = 0; jk < layerCounts[m]; jk++)
-               for (int ij = 0; ij < layerCounts[m+1]; ij++)
-                  weights[m][jk][ij] += weightAdjustments[m][jk][ij];
-
-         double[][] newCalculatedOutputs = runNetworkOnInputs(inputs);
-         double newErrorDiff = outputs[testCaseIndex][0] - newCalculatedOutputs[testCaseIndex][0];
-         double newCaseError = newErrorDiff * newErrorDiff / 2.0;
-         //errorCalculator(outputs,newCalculatedOutputs)[0];
-
-         if (newCaseError < caseError)
-         {
-            // Cap lambda (learning factor) to lambdaMaxCap
-            if (lambda < lambdaMaxCap)
-               lambda *= lambdaChange;
-            calculatedOutputs = newCalculatedOutputs;
-         }
-         else
-         {
-            lambda /= lambdaChange;
-            for (int m = 0; m < weights.length; m++)
-               for (int jk = 0; jk < layerCounts[m]; jk++)
-                  for (int ij = 0; ij < layerCounts[m+1]; ij++)
-                     weights[m][jk][ij] -= weightAdjustments[m][jk][ij];
-         }
-      }
+      System.out.println("outputs: " + Arrays.deepToString(calculatedOutputs));
    }
 
    /**
