@@ -16,6 +16,12 @@ import java.util.StringTokenizer;
 public class Main
 {
    /**
+    * Default network configuration file paths
+    */
+   private static String defaultFileConfigPath = "fileConfig.txt";
+   private static String defaultNetworkConfigPath = "networkConfig.txt";
+
+   /**
     * This is the public static void main(...) method that
     * will run the network until an interface is created
     * instead.
@@ -29,17 +35,19 @@ public class Main
    {
       BufferedReader inputStreamReader = new BufferedReader(new InputStreamReader(System.in));
 
-      String runType, inputFilePath, outputsFilePath;
+      String inputFilePath, outputsFilePath;
       String weightsFilePath, weightDumpPath, outputDumpPath, otherDumpPath;
       try
       {
          System.out.println("Enter the file path to the file configuration file");
          String fileConfigPath = inputStreamReader.readLine();
+         if (fileConfigPath.equals(""))
+            fileConfigPath = defaultFileConfigPath;
+
          File fileConfigFile = new File(fileConfigPath);
          BufferedReader fileConfigReader = new BufferedReader(new FileReader(fileConfigFile));
 
          // Required
-         runType = fileConfigReader.readLine();
          inputFilePath = fileConfigReader.readLine();
          outputsFilePath = fileConfigReader.readLine();
 
@@ -48,6 +56,9 @@ public class Main
          weightDumpPath = fileConfigReader.readLine();
          outputDumpPath = fileConfigReader.readLine();
          otherDumpPath = fileConfigReader.readLine();
+
+         // Confirmation print
+         System.out.println("Using the file config path \"" + fileConfigPath + "\"\n");
       }
       catch (IOException ioException)
       {
@@ -56,18 +67,26 @@ public class Main
          return;
       }
 
-      String networkStructure, lambdaConfig, randomWeightBounds, useRaggedArrays;
+      String networkStructure, runType;
+      String lambdaConfig, randomWeightBounds, useRaggedArrays;
       try
       {
          System.out.println("Enter the file path to the network configuration file");
          String networkStructureFile = inputStreamReader.readLine();
+         if (networkStructureFile.equals(""))
+            networkStructureFile = defaultNetworkConfigPath;
+
          File fileConfigFile = new File(networkStructureFile);
          BufferedReader fileConfigReader = new BufferedReader(new FileReader(fileConfigFile));
 
          networkStructure = fileConfigReader.readLine();
+         runType = fileConfigReader.readLine();
+
          lambdaConfig = fileConfigReader.readLine();
          randomWeightBounds = fileConfigReader.readLine();
          useRaggedArrays = fileConfigReader.readLine();
+
+         System.out.println("Using the network config path \"" + networkStructureFile + "\"\n");
       }
       catch (IOException ioException)
       {
@@ -165,7 +184,12 @@ public class Main
    }
 
    /**
-    * TODO (9/24/19) JavaDoc here
+    * This method parses an integer from a given string.
+    * If the string does not represent an integer value,
+    * then the method defaults to another passed paramter instead.
+    *
+    * The use of 2 return statements in this method is completely
+    * intentional as it improves the readability of the method significantly over
     *
     * @param nextToken
     * @param defaultValue

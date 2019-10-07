@@ -1,4 +1,3 @@
-train
 files/inputs.txt
 files/outputs.txt
 files/weights.txt

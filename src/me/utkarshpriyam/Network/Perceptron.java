@@ -598,15 +598,20 @@ public class Perceptron {
       if (inputs.length != outputs.length)
          throw new IllegalStateException("input and output files don't hold the same number of cases");
 
+      System.out.println(Arrays.deepToString(weights));
+
       boolean continueTraining = true;
       int iterationCounter = 0;
       while (continueTraining)
       {
          if (layerCounts.length != 3)
-            throw new RuntimeException("training currently only works for A-B-1 networks");
+            throw new RuntimeException("training currently only works for A-B-C networks");
 
          double[][] calculatedOutputs = runNetworkOnInputs(inputs);
          int numTestCases = outputs.length;
+
+         double minimumTestCaseError = Double.MAX_VALUE;
+
          for (int testCaseIndex = 0; testCaseIndex < numTestCases; testCaseIndex++)
          {
             // Run network on test case to store activation values into array
@@ -615,11 +620,13 @@ public class Perceptron {
             // The weights adjustment array
             double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
             // The error difference for this test case
-            double errorDiff = outputs[testCaseIndex][0] - calculatedOutputs[testCaseIndex][0];
+            double[] errorDiff = new double[layerCounts[2]];
 
             for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
                for (int i = 0; i < layerCounts[2]; i++) // Output Layer
                {
+                  errorDiff[i] = outputs[testCaseIndex][i] - calculatedOutputs[testCaseIndex][i];
+
                   int prevLayerLength = layerCounts[1];
                   double activationValueUnbounded = 0;
 
@@ -630,7 +637,7 @@ public class Perceptron {
                   // These 2 lines handle this derivative --> d F_i/d W_abc
                   double adjustment = neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[1][j];
                   // Multiply by learning factor and error diff to get delta W
-                  adjustment *= lambda * errorDiff;
+                  adjustment *= lambda * errorDiff[i];
                   // Store delta W in array
                   weightAdjustments[1][j][i] = adjustment;
                }
@@ -645,22 +652,31 @@ public class Perceptron {
                   for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
                      activationValueUnbounded += activations[0][layerElementsIndex] * weights[0][layerElementsIndex][j];
 
-                  // Get the output value unbounded - Currently Dot Product
-                  for (int layerElementsIndex = 0; layerElementsIndex < nextLayerLength; layerElementsIndex++)
-                     outputValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][0];
+                  // Total delta W
+                  double adjustment = 0;
 
-                  // Handle this derivative --> d f(h_j)/d W_abc
-                  double adjustment = neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][0];
+                  // Do for loop over all possible outputs
+                  for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+                  {
+                     // Get the output value unbounded - Currently Dot Product
+                     for (int layerElementsIndex = 0; layerElementsIndex < nextLayerLength; layerElementsIndex++)
+                        outputValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][i];
+
+                     // Handle this derivative ( d f(h_j)/d W_abc ) and multiply by case.output error
+                     adjustment += neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][i] * errorDiff[i];
+                  }
                   // Handle this derivative --> d F_i/d W_abc
                   adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[0][k];
-                  // Multiply by learning factor and error diff to get delta W
-                  adjustment *= lambda * errorDiff;
+                  // Multiply by learning factor to get delta W
+                  adjustment *= lambda;
                   // Store delta W in array
                   weightAdjustments[0][k][j] = adjustment;
                }
 
             // Scaled, Positive Error for this case
-            double caseError = errorDiff * errorDiff / 2.0;
+            double caseError = 0;
+            for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+               caseError += errorDiff[i] * errorDiff[i] / 2.0;
 
             for (int m = 0; m < weights.length; m++)
                for (int jk = 0; jk < layerCounts[m]; jk++)
@@ -668,8 +684,12 @@ public class Perceptron {
                      weights[m][jk][ij] += weightAdjustments[m][jk][ij];
 
             double[][] newCalculatedOutputs = runNetworkOnInputs(inputs);
-            double newErrorDiff = outputs[testCaseIndex][0] - newCalculatedOutputs[testCaseIndex][0];
-            double newCaseError = newErrorDiff * newErrorDiff / 2.0;
+            double newCaseError = 0, newErrorDiff;
+            for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+            {
+               newErrorDiff = outputs[testCaseIndex][i] - newCalculatedOutputs[testCaseIndex][i];
+               newCaseError += newErrorDiff * newErrorDiff / 2.0;
+            }
 
             if (newCaseError < caseError)
             {
@@ -677,6 +697,9 @@ public class Perceptron {
                if (lambda < lambdaMaxCap)
                   lambda *= lambdaChange;
                calculatedOutputs = newCalculatedOutputs;
+
+               if (minimumTestCaseError > newCaseError)
+                  minimumTestCaseError = newCaseError;
             }
             else
             {
@@ -685,26 +708,43 @@ public class Perceptron {
                   for (int jk = 0; jk < layerCounts[m]; jk++)
                      for (int ij = 0; ij < layerCounts[m+1]; ij++)
                         weights[m][jk][ij] -= weightAdjustments[m][jk][ij];
+
+               if (minimumTestCaseError > caseError)
+                  minimumTestCaseError = caseError;
             }
          }
 
          if (lambda < lambdaMinCap)
          {
-            System.out.println("Lambda went below minimum lambda capacity: " + lambda + " < " + lambdaMinCap);
+            System.out.println("Lambda went below Minimum Lambda Capacity: " + lambda + " < " + lambdaMinCap);
             continueTraining = false;
          }
+
+         if (minimumTestCaseError < 0.00001)
+         {
+            System.out.println("Maximum Test Case Error went below Minimum Error Success Threshold: " + minimumTestCaseError + " < " + 0.00001);
+            continueTraining = false;
+         }
+
          iterationCounter++;
          if (iterationCounter >= 100000)
+         {
+            System.out.println("Training Iterations hit Iteration Capacity: " + iterationCounter + " >= " + 100000);
             continueTraining = false;
+         }
       }
 
       System.out.println();
       System.out.println("weights: " + Arrays.deepToString(weights));
       System.out.println("lambda: " + lambda);
 
+      System.out.println();
       double[][] calculatedOutputs = runNetworkOnInputs(inputs);
       System.out.println("error: " + errorCalculator(outputs,calculatedOutputs)[0]);
       System.out.println("outputs: " + Arrays.deepToString(calculatedOutputs));
+
+      System.out.println();
+      System.out.println("Total Iterations: " + iterationCounter);
    }
 
    /**
