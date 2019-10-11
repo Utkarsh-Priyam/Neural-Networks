@@ -1,4 +1,4 @@
-# Neural-Networks
+# Neural Networks
 This is my repository for all things related to the neural networks class I took in 11th grade.
 
 The repository will be updated to back up my work and reflect my work path through the class.
