@@ -16,7 +16,7 @@ import java.util.StringTokenizer;
 public class Main
 {
    /**
-    * Default network configuration file paths
+    * The default network configuration file paths
     */
    private static String defaultFileConfigPath = "fileConfig.txt";
    private static String defaultNetworkConfigPath = "networkConfig.txt";
@@ -184,19 +184,23 @@ public class Main
    }
 
    /**
-    * This method parses an integer from a given string.
-    * If the string does not represent an integer value,
-    * then the method defaults to another passed paramter instead.
+    * This method parses a integer from a single string token.
+    * If the token is not a integer, then it just returns the default value.
     *
-    * The use of 2 return statements in this method is completely
-    * intentional as it improves the readability of the method significantly over
+    * This method takes two String parameters: nextToken and defaultValue
     *
-    * @param nextToken
-    * @param defaultValue
-    * @return
+    * @param nextToken     The token to parse
+    * @param defaultValue  The default value to return
+    *
+    * @return The parsed integer, or the defaultValue if the token cannot be parsed
     */
    private static int parseInt(String nextToken, int defaultValue)
    {
+/*
+ * The use of 2 return statements in this method is completely
+ * intentional as it improves the readability of the method significantly
+ * over using a single return and intermediate storage variables.
+ */
       try
       {
          return Integer.parseInt(nextToken);
@@ -208,14 +212,23 @@ public class Main
    }
 
    /**
-    * TODO (10/1/19) JavaDoc here
+    * This method parses a double from a single string token.
+    * If the token is not a double, then it just returns the default value.
     *
-    * @param nextToken
-    * @param defaultValue
-    * @return
+    * This method takes two String parameters: nextToken and defaultValue
+    *
+    * @param nextToken     The token to parse
+    * @param defaultValue  The default value to return
+    *
+    * @return The parsed double, or the defaultValue if the token cannot be parsed
     */
    private static double parseDouble(String nextToken, double defaultValue)
    {
+/*
+ * The use of 2 return statements in this method is completely
+ * intentional as it improves the readability of the method significantly
+ * over using a single return and intermediate storage variables.
+ */
       try
       {
          return Double.parseDouble(nextToken);

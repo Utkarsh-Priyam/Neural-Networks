@@ -24,7 +24,8 @@ import java.util.*;
  *   - The network will not take any predicted output values
  *      - As a result, the network will neither train its weights
  *        not return an error value
- * WORK IN PROGRESS:
+ *
+ * WORK IN PROGRESS (Works for A-B-C networks):
  * In Training Mode (as the name suggests, to train the network):
  *   - The network will take in both the inputs and the expected outputs
  *   - The network will automatically calculate its error and
@@ -41,7 +42,8 @@ import java.util.*;
  * @author Utkarsh Priyam
  * @version 9/4/19
  */
-public class Perceptron {
+public class Perceptron
+{
    /**
     * This boolean constant dictates whether to instantiate the
     * neuron and edge arrays as a full block (which has wasted space)
@@ -58,17 +60,35 @@ public class Perceptron {
    private double lambda;
 
    /**
-    * TODO: (9/24/19) Add JavaDoc here
+    * The private double lambdaChange is a configurable double that tells
+    * how much to multiply or divide the lambda learning factor by while
+    * training the network.
+    *
+    * The lambdaMinCap and lambdaMaxCap are two configurable doubles which
+    * bound lambda do the range (lambdaMinCap,lambdaMaxCap].
+    *
+    * If lambda hits the maximum cap, it is simply bounded to that value.
+    * On the other hand, if lambda hits the minimum cap, then the training
+    * procedure terminates and the program tells that it ended due to the
+    * lambda going below a minimum threshold (lambdaMinCap).
     */
    private double lambdaChange;
-
-   /**
-    * TODO: (9/24/19) Add JavaDoc here
-    */
    private double lambdaMinCap, lambdaMaxCap;
 
    /**
-    * TODO: (10/1/19) Add JavaDoc here
+    * This package-private method takes in a double array that holds
+    * all of the hyper-parameters relating to the lambda learning factor.
+    *
+    * The array must be at least of length 4
+    * (or an ArrayIndexOutOfBound exception is thrown)
+    *
+    * The array's 4 values must be, in order,
+    * {lambda, lambdaChange, lambdaMinCap, lambdaMaxCap}.
+    *
+    * Of course, lambdaMinCap < lambda < lambdaMaxCap is a requirement.
+    *
+    * @param lambdaConfig  The double array that holds all the configurable
+    *                      hyper-parameters for the lambda learning factor.
     */
    void loadLambdaConfig(double[] lambdaConfig)
    {
@@ -301,7 +321,8 @@ public class Perceptron {
          BufferedReader w = new BufferedReader(new FileReader(weightsFile));
 
          // Iterate through all the different weights layers
-         for (int m = 0; m < weights.length; m++) {
+         for (int m = 0; m < weights.length; m++)
+         {
             // Make sure the next line is not null
             String textLine = w.readLine();
             if (textLine == null)
@@ -336,11 +357,16 @@ public class Perceptron {
    /**
     * Generate a number uniformly at random in the interval [low,high).
     *
-    * TODO (9/24/19) JavaDoc
+    * This method takes 2 parameters, low and high, which give the bounds
+    * for the random number generation.
     *
-    * @param low
-    * @param high
-    * @return
+    * If low > high, then the number is in the range (high,low] instead.
+    * (But the number returned is still properly "random" in about the same range).
+    *
+    * @param low  The lower bound of the random number generation
+    * @param high The upper bound of the random number generation
+    *
+    * @return     A random double in the range [low,high)
     */
    private double random(double low, double high)
    {
@@ -455,18 +481,22 @@ public class Perceptron {
 
    /**
     * This method parses a double from a single string token.
-    * If the token is not a double, then it just returns 0 by default.
+    * If the token is not a double, then it just returns the default value.
     *
-    * TODO (9/24/19) JavaDoc
+    * This method takes two String parameters: nextToken and defaultValue
     *
-    * This method takes one String parameter nextToken
+    * @param nextToken     The token to parse
+    * @param defaultValue  The default value to return
     *
-    * @param nextToken The token to parse
-    *
-    * @return The parsed double, or 0 if the token cannot be parsed
+    * @return The parsed double, or the defaultValue if the token cannot be parsed
     */
    private double parseDouble(String nextToken, double defaultValue)
    {
+/*
+ * The use of 2 return statements in this method is completely
+ * intentional as it improves the readability of the method significantly
+ * over using a single return and intermediate storage variables.
+ */
       try
       {
          return Double.parseDouble(nextToken);
@@ -491,7 +521,7 @@ public class Perceptron {
     *         array rows are sorted in the order that the inputs are given. Each row
     *         of the array will have as many elements as output neurons in the network.
     */
-   protected double[][] runNetwork(File inputsFile)
+   double[][] runNetwork(File inputsFile)
    {
       // Get the inputs from the file
       double[][] inputs = readInputs(inputsFile);
@@ -586,12 +616,12 @@ public class Perceptron {
     *
     * To train, the process using gradient descent to find the minimum of the n-dimensional surface.
     *
-    * Currently the training gradient descent only works for A-B-1 networks.
+    * Currently the training gradient descent only works for A-B-C networks.
     *
     * @param inputsFile    The inputs file
     * @param outputsFile   The outputs file
     */
-   protected void trainNetwork(File inputsFile, File outputsFile)
+   void trainNetwork(File inputsFile, File outputsFile)
    {
       double[][] inputs = readInputs(inputsFile);
       double[][] outputs = readOutputs(outputsFile);
@@ -740,7 +770,7 @@ public class Perceptron {
 
       System.out.println();
       double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-      System.out.println("error: " + errorCalculator(outputs,calculatedOutputs)[0]);
+      System.out.println("errors: " + Arrays.toString(errorCalculator(outputs,calculatedOutputs)));
       System.out.println("outputs: " + Arrays.deepToString(calculatedOutputs));
 
       System.out.println();
@@ -748,9 +778,21 @@ public class Perceptron {
    }
 
    /**
-    * TODO (9/24/19) JavaDoc
+    * This method calculates the total error for the entire network.
+    * It does so by finding the error for each output and testcase.
+    * The testcase errors for each output are combined by taking
+    * the square root of the sum of the squares of the errors.
+    *
+    * This method takes 2 parameters: 2 double arrays which hold
+    * the expected and calculated outputs for the network
+    *
+    * @param expected   The expected outputs for the network
+    * @param calculated The calculated outputs for the network
+    *
+    * @return           An array of errors (for each output)
     */
-   private double[] errorCalculator(double[][] expected, double[][] calculated) {
+   private double[] errorCalculator(double[][] expected, double[][] calculated)
+   {
       if (expected.length != calculated.length || expected.length == 0)
          throw new IllegalArgumentException("The expected and calculated arrays must both have the same " +
                "non-zero number of test cases");
@@ -762,7 +804,8 @@ public class Perceptron {
       double[] errors = new double[expected[0].length];
       for (int outputIndex = 0; outputIndex < errors.length; outputIndex++)
       {
-         for (int testCaseIndex = 0; testCaseIndex < expected.length; testCaseIndex++) {
+         for (int testCaseIndex = 0; testCaseIndex < expected.length; testCaseIndex++)
+         {
             double expectedValue = expected[testCaseIndex][outputIndex];
             double calculatedValue = calculated[testCaseIndex][outputIndex];
 
