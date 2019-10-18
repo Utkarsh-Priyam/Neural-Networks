@@ -69,6 +69,8 @@ public class Main
 
       String networkStructure, runType;
       String lambdaConfig, randomWeightBounds, useRaggedArrays;
+      double minimumError;
+      int maximumIterationCount;
       try
       {
          System.out.println("Enter the file path to the network configuration file");
@@ -83,6 +85,8 @@ public class Main
          runType = fileConfigReader.readLine();
 
          lambdaConfig = fileConfigReader.readLine();
+         minimumError = parseDouble(fileConfigReader.readLine(),0.00001);
+         maximumIterationCount = parseInt(fileConfigReader.readLine(),100000);
          randomWeightBounds = fileConfigReader.readLine();
          useRaggedArrays = fileConfigReader.readLine();
 
@@ -113,14 +117,17 @@ public class Main
       double[] lambdaConfigurations = new double[4];
       // Default 0 if missing (in most cases will simply prevent training the network)
       for (int i = 0; i < lambdaConfigurations.length; i++)
-         lambdaConfigurations[i] = parseDouble(lambdaConfigTokenizer.nextToken(),0);
+         lambdaConfigurations[i] = parseDouble(lambdaConfigTokenizer.nextToken(),0.0);
       pdp.loadLambdaConfig(lambdaConfigurations);
 
       // Read the weights for the network from the file
       StringTokenizer randomWeightBoundsTokenizer = new StringTokenizer(randomWeightBounds);
-      int minWeight = parseInt(randomWeightBoundsTokenizer.nextToken(),0);
-      int maxWeight = parseInt(randomWeightBoundsTokenizer.nextToken(),0);
+      double minWeight = parseDouble(randomWeightBoundsTokenizer.nextToken(),0.0);
+      double maxWeight = parseDouble(randomWeightBoundsTokenizer.nextToken(),0.0);
       pdp.readWeights(weightsFile,minWeight,maxWeight);
+
+      // Load in the other stopping condition parameters for the network
+      pdp.loadStopConditions(minimumError,maximumIterationCount);
 
       // Calculated Outputs
       double[][] calculatedOutputs;

@@ -99,6 +99,28 @@ public class Perceptron
    }
 
    /**
+    * These two private variables hold the minimum error that needs to be
+    * achieved in order to declare success while training and the maximum
+    * number of iterations before the network will stop training.
+    */
+   private double minimumError;
+   private int maximumIterationCount;
+
+   /**
+    * This package-private method takes in a double telling the minimum error that needs to be
+    * achieved in order to declare success while training. It also takes in an integer which
+    * gives a maximum number of iterations before the network will stop training.
+    *
+    * @param minError   Minimum error to succeed
+    * @param maxItCount Maximum number of iterations to complete before terminating
+    */
+   void loadStopConditions(double minError, int maxItCount)
+   {
+      minimumError = minError;
+      maximumIterationCount = maxItCount;
+   }
+
+   /**
     * The layerCounts array stores the number of neurons
     * in each layer of the network.
     *
@@ -414,7 +436,7 @@ public class Perceptron
                // If the inputs line ran out, use 0 (default double value)
                if (inputsLine.hasMoreTokens())
                   // Else read from the inputs line
-                  inputs[iterator][inputIndex] = parseDouble(inputsLine.nextToken(),0);
+                  inputs[iterator][inputIndex] = parseDouble(inputsLine.nextToken(),0.0);
          }
 
          return inputs;
@@ -467,7 +489,7 @@ public class Perceptron
                // If the outputs line ran out, use 0 (default double value)
                if (outputsLine.hasMoreTokens())
                   // Else read from the outputs line
-                  outputs[caseIndex][outputIndex] = parseDouble(outputsLine.nextToken(),0);
+                  outputs[caseIndex][outputIndex] = parseDouble(outputsLine.nextToken(),0.0);
          }
 
          return outputs;
@@ -750,16 +772,20 @@ public class Perceptron
             continueTraining = false;
          }
 
-         if (minimumTestCaseError < 0.00001)
+         if (minimumTestCaseError < minimumError)
          {
-            System.out.println("Maximum Test Case Error went below Minimum Error Success Threshold: " + minimumTestCaseError + " < " + 0.00001);
+            System.out.println("Maximum Test Case Error went below Minimum Error Success Threshold: " +
+                    minimumTestCaseError + " < " + minimumError);
+
             continueTraining = false;
          }
 
          iterationCounter++;
-         if (iterationCounter >= 100000)
+         if (iterationCounter >= maximumIterationCount)
          {
-            System.out.println("Training Iterations hit Iteration Capacity: " + iterationCounter + " >= " + 100000);
+            System.out.println("Training Iterations hit Iteration Capacity: " +
+                    iterationCounter + " >= " + maximumIterationCount);
+
             continueTraining = false;
          }
       }
@@ -809,10 +835,10 @@ public class Perceptron
             double expectedValue = expected[testCaseIndex][outputIndex];
             double calculatedValue = calculated[testCaseIndex][outputIndex];
 
-            double testCaseError = expectedValue - calculatedValue; // T0 - F0
-            testCaseError = testCaseError * testCaseError; // (T0 - F0)^2
+            double testCaseError = expectedValue - calculatedValue; // Ti - Fi
+            testCaseError = testCaseError * testCaseError; // (Ti - Fi)^2
 
-            errors[outputIndex] += testCaseError * testCaseError / 4.0; // ((T0 - F0)^4) / 4
+            errors[outputIndex] += testCaseError * testCaseError / 4.0; // ((Ti - Fi)^4) / 4
          }
          errors[outputIndex] = Math.sqrt(errors[outputIndex]); // SQRT(sum of squares of errors)
       }
