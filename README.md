@@ -3,7 +3,9 @@ This is my repository for all things related to the neural networks class I took
 
 The repository will be updated to back up my work and reflect my work path through the class.
 ##
-This repository is completely in java. If you would like a python version of this code base, check out [this](https://github.com/rishab-partha/Neural-Networks) repository by Rishab Parthasarathy.
+This repository is completely in java.
+
+If you would like a python version of this code base, check out [this](https://github.com/rishab-partha/Neural-Networks) repository by Rishab Parthasarathy.
 ##
 This repository is public but will only be updated sporadically.
 
