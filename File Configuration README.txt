@@ -23,18 +23,20 @@ Line 1: Network Structural Configuration (A-B-...)
   -- A list of hyphen-separated integers that give the dimensions of the network
 Line 2: Whether to Run, Train, or Test the network
   -- All lowercase letters spelling "run", "train", or "test" (without the quotation marks)
-Line 3: Starting LAMBDA value, LAMBDA change value, Minimum LAMBDA cap, Maximum LAMBDA cap
+Line 3: Number of Test Cases to Execute Over
+  -- A single integer that tells the network how many test cases there are
+Line 4: Starting LAMBDA value, LAMBDA change value, Minimum LAMBDA cap, Maximum LAMBDA cap
   -- A list of 4 space-separated doubles (in this order)
   -- Results guaranteed only if: Minimum LAMBDA cap < Starting LAMBDA value < Maximum LAMBDA cap
-Line 4: The Minimum Error Under Which the Network Can Declare Success
+Line 5: The Minimum Error Under Which the Network Can Declare Success
   -- Set this to 0 if you want to get rid of the minimum error success exit case
-Line 5: The Maximum Number of Iterations Before the Network Stops Training
+Line 6: The Maximum Number of Iterations Before the Network Stops Training
   -- This must be an integer or it will be defaulted to 100000 (100k = one hundred thousand) iterations
-Line 6: Random Weights Generation Bounds: Low, High
+Line 7: Random Weights Generation Bounds: Low, High
   -- A list of 2 space separated doubles
   -- The random weights will generate in the range [Low, High)
   -- Results only guaranteed if: Low < High
-Line 7: Whether to Generate the Underlying Arrays as RAGGED Arrays or BOX Arrays
+Line 8: Whether to Generate the Underlying Arrays as RAGGED Arrays or BOX Arrays
   -- "true" = RAGGED Array
   -- "false" = BOX Array
   -- Any Other String = BOX Array
