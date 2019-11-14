@@ -95,7 +95,11 @@ public class Perceptron
       lambda = lambdaConfig[0];
       lambdaChange = lambdaConfig[1];
       lambdaMinCap = lambdaConfig[2];
-      lambdaMaxCap = lambdaConfig[3];
+
+      if (lambdaConfig[3] < 0.0)
+         lambdaMaxCap = Double.MAX_VALUE;
+      else
+         lambdaMaxCap = lambdaConfig[3];
    }
 
    /**
@@ -132,7 +136,7 @@ public class Perceptron
     * (stored as layer.prevNeuron.nextNeuron)
     */
    private int[] layerCounts;
-   private double[][] activations;
+   private double[][] activations, unboundedActivations;
    double[][][] weights;
 
    /**
@@ -156,7 +160,7 @@ public class Perceptron
          throw new IllegalArgumentException("not enough layers in network");
 
       // Adjust the inputs to ensure that every layer has at least 1 neuron
-      layerCounts = setMinimumAllowed(layerCounts,1);
+      setMinimumAllowed(layerCounts,1);
 
       // Store the layers array
       this.layerCounts = layerCounts;
@@ -190,7 +194,7 @@ public class Perceptron
          numInputs = 1;
       if (numOutputs < 1)
          numOutputs = 1;
-      hiddenLayersCount = setMinimumAllowed(hiddenLayersCount,1);
+      setMinimumAllowed(hiddenLayersCount,1);
 
       // Compact all the layers data into one single array
       layerCounts = new int[hiddenLayersCount.length + 2];
@@ -210,12 +214,10 @@ public class Perceptron
     *
     * @return The adjusted array
     */
-   private int[] setMinimumAllowed(int[] hiddenLayersCount, int minimumValue)
+   private void setMinimumAllowed(int[] hiddenLayersCount, int minimumValue)
    {
-      int[] newArray = new int[hiddenLayersCount.length];
       for (int i = 0; i < hiddenLayersCount.length; i++)
-         newArray[i] = Math.max(hiddenLayersCount[i], minimumValue);
-      return newArray;
+         hiddenLayersCount[i] = Math.max(hiddenLayersCount[i], minimumValue);
    }
 
    /**
@@ -268,14 +270,20 @@ public class Perceptron
    {
       // Generate Neurons Array - Total Layers = Input + Hidden + Output = 2 + numHidden
       activations = new double[2 + hiddenLayersCount.length][];
+      unboundedActivations = new double[activations.length][];
 
       // Set Input Neurons Array length
       activations[0] = new double[numInputs];
+      unboundedActivations[0] = new double[numInputs];
       // Set Hidden Neurons Array length
       for (int i = 1; i < activations.length - 1; i++)
+      {
          activations[i] = new double[hiddenLayersCount[i]];
+         unboundedActivations[i] = new double[hiddenLayersCount[i]];
+      }
       // Set Output Neurons Array length
       activations[activations.length - 1] = new double[numOutputs];
+      unboundedActivations[activations.length - 1] = new double[numOutputs];
 
       // Generate Edges Array - Total Layers = numNeurons - 1
       weights = new double[activations.length - 1][][];
@@ -317,6 +325,7 @@ public class Perceptron
 
       // Generate both arrays
       activations = new double[2 + hiddenLayersCount.length][maxNumNeurons];
+      unboundedActivations = new double[activations.length][maxNumNeurons];
       weights = new double[activations.length - 1][maxNumNeurons][maxNumNeurons];
    }
 
@@ -410,15 +419,14 @@ public class Perceptron
     *                          This method also prints out the stack trace
     *                          of the original error.
     */
-   private double[][] readInputs(File inputsFile)
+   private double[][] readInputs(File inputsFile, int numTestCases)
    {
       try
       {
          // BufferedReader can read the inputsFile file
          BufferedReader in = new BufferedReader(new FileReader(inputsFile));
 
-         // The file is formatted so the first line tells how many test cases there are
-         int numTestCases = Integer.parseInt(in.readLine());
+         // There are numTestCases total
          double[][] inputs = new double[numTestCases][layerCounts[0]];
 
          // Iterate over all the test cases
@@ -463,15 +471,14 @@ public class Perceptron
     *                          This method also prints out the stack trace
     *                          of the original error.
     */
-   private double[][] readOutputs(File outputsFile)
+   private double[][] readOutputs(File outputsFile, int numTestCases)
    {
       try
       {
          // BufferedReader can read the inputsFile file
          BufferedReader in = new BufferedReader(new FileReader(outputsFile));
 
-         // The file is formatted so the first line tells how many test cases there are
-         int numTestCases = Integer.parseInt(in.readLine());
+         // There are numTestCases total
          int numOutputs = layerCounts[layerCounts.length-1];
          double[][] outputs = new double[numTestCases][numOutputs];
 
@@ -543,10 +550,10 @@ public class Perceptron
     *         array rows are sorted in the order that the inputs are given. Each row
     *         of the array will have as many elements as output neurons in the network.
     */
-   double[][] runNetwork(File inputsFile)
+   double[][] runNetwork(File inputsFile, int numTestCases)
    {
       // Get the inputs from the file
-      double[][] inputs = readInputs(inputsFile);
+      double[][] inputs = readInputs(inputsFile, numTestCases);
 
       // Run the network on the inputs
       return runNetworkOnInputs(inputs);
@@ -566,28 +573,27 @@ public class Perceptron
     */
    private double[][] runNetworkOnInputs(double[][] inputs)
    {
+      // Index of output layer
+      int outputLayerIndex = activations.length - 1;
+
+      // Store the values of the output neurons into the 2D outputs array
+      double[] activatedNeurons = activations[outputLayerIndex];
+      int countOutputNeurons = layerCounts[outputLayerIndex];
+
       // A 2D array is created with enough rows to store all the test cases individually
-      double[][] outputs = new double[inputs.length][];
+      double[][] outputs = new double[inputs.length][countOutputNeurons];
 
       // Iterate over all the test cases
       for (int testCaseIndex = 0; testCaseIndex < inputs.length; testCaseIndex++)
       {
          // Put the input values into the network
-         activations[0] = inputs[testCaseIndex];
+         activations[0] = unboundedActivations[0] = inputs[testCaseIndex];
 
          // Calculate the activation values for all activation layers
          for (int n = 1; n < activations.length; n++)
             calculateActivations(n);
 
-         // Index of output layer
-         int outputLayerIndex = activations.length - 1;
-
-         // Store the values of the output neurons into the 2D outputs array
-         double[] activatedNeurons = activations[outputLayerIndex];
-         int countOutputNeurons = layerCounts[outputLayerIndex];
-
          // Store the values into the outputs array
-         outputs[testCaseIndex] = new double[countOutputNeurons];
          for (int outputNeuronIndex = 0; outputNeuronIndex < countOutputNeurons; outputNeuronIndex++)
             outputs[testCaseIndex][outputNeuronIndex] = activatedNeurons[outputNeuronIndex];
       }
@@ -609,19 +615,18 @@ public class Perceptron
     */
    private double[] runNetworkOnInputs(double[] inputs)
    {
+      // Return the outputs array - Last row of activations array
+      double[] calculatedOutputs = activations[activations.length - 1];
+
       // A 1D array to hold the outputs
-      double[] outputs;
+      double[] outputs = new double[calculatedOutputs.length];;
 
       // Put the input values into the network
-      activations[0] = inputs;
+      activations[0] = unboundedActivations[0] = inputs;
 
       // Calculate the activation values for all activation layers
       for (int n = 1; n < activations.length; n++)
          calculateActivations(n);
-
-      // Return the outputs array - Last row of activations array
-      double[] calculatedOutputs = activations[activations.length - 1];
-      outputs = new double[calculatedOutputs.length];
 
       for (int index = 0; index < calculatedOutputs.length; index++)
          outputs[index] = calculatedOutputs[index];
@@ -643,24 +648,35 @@ public class Perceptron
     * @param inputsFile    The inputs file
     * @param outputsFile   The outputs file
     */
-   void trainNetwork(File inputsFile, File outputsFile)
+   void trainNetwork(File inputsFile, File outputsFile, int numTestCases)
    {
-      double[][] inputs = readInputs(inputsFile);
-      double[][] outputs = readOutputs(outputsFile);
+      if (layerCounts.length != 3)
+         throw new RuntimeException("training currently only works for A-B-C networks");
+
+      // REMOVE - BITMAP TESTING
+//      System.out.println("Starting Training");
+      double[][] inputs = readInputs(inputsFile, numTestCases);
+      double[][] outputs = readOutputs(outputsFile, numTestCases);
       if (inputs.length != outputs.length)
          throw new IllegalStateException("input and output files don't hold the same number of cases");
 
-      System.out.println(Arrays.deepToString(weights));
+      // REMOVE - BITMAP TESTING
+//      System.out.println(Arrays.deepToString(inputs));
+//      System.out.println(Arrays.deepToString(outputs));
+//      System.out.println("Inputs and Outputs read");
+//      double startTime = System.nanoTime() / 1000000000.0;
 
       boolean continueTraining = true;
       int iterationCounter = 0;
+
+      // The weights adjustment array
+      double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
+      // The error difference for this test case
+      double[] errorDiff = new double[layerCounts[2]];
+
       while (continueTraining)
       {
-         if (layerCounts.length != 3)
-            throw new RuntimeException("training currently only works for A-B-C networks");
-
          double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-         int numTestCases = outputs.length;
 
          double minimumTestCaseError = Double.MAX_VALUE;
 
@@ -669,25 +685,13 @@ public class Perceptron
             // Run network on test case to store activation values into array
             runNetworkOnInputs(inputs[testCaseIndex]);
 
-            // The weights adjustment array
-            double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
-            // The error difference for this test case
-            double[] errorDiff = new double[layerCounts[2]];
-
             for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
                for (int i = 0; i < layerCounts[2]; i++) // Output Layer
                {
                   errorDiff[i] = outputs[testCaseIndex][i] - calculatedOutputs[testCaseIndex][i];
 
-                  int prevLayerLength = layerCounts[1];
-                  double activationValueUnbounded = 0;
-
-                  // Get the activation value unbounded - Currently Dot Product
-                  for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
-                     activationValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][i];
-
                   // These 2 lines handle this derivative --> d F_i/d W_abc
-                  double adjustment = neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[1][j];
+                  double adjustment = neuronThresholdFunctionDeriv(unboundedActivations[2][i]) * activations[1][j];
                   // Multiply by learning factor and error diff to get delta W
                   adjustment *= lambda * errorDiff[i];
                   // Store delta W in array
@@ -697,30 +701,17 @@ public class Perceptron
             for (int k = 0; k < layerCounts[0]; k++) // Input Layer
                for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
                {
-                  int prevLayerLength = layerCounts[0], nextLayerLength = layerCounts[1];
-                  double activationValueUnbounded = 0, outputValueUnbounded = 0;
-
-                  // Get the activation value unbounded - Currently Dot Product
-                  for (int layerElementsIndex = 0; layerElementsIndex < prevLayerLength; layerElementsIndex++)
-                     activationValueUnbounded += activations[0][layerElementsIndex] * weights[0][layerElementsIndex][j];
-
                   // Total delta W
                   double adjustment = 0;
 
                   // Do for loop over all possible outputs
                   for (int i = 0; i < layerCounts[2]; i++) // Output Layer
                   {
-                     // Get the output value unbounded - Currently Dot Product
-                     for (int layerElementsIndex = 0; layerElementsIndex < nextLayerLength; layerElementsIndex++)
-                        outputValueUnbounded += activations[1][layerElementsIndex] * weights[1][layerElementsIndex][i];
-
                      // Handle this derivative ( d f(h_j)/d W_abc ) and multiply by case.output error
-                     adjustment += neuronThresholdFunctionDeriv(outputValueUnbounded) * weights[1][j][i] * errorDiff[i];
+                     adjustment += neuronThresholdFunctionDeriv(unboundedActivations[2][i]) * weights[1][j][i] * errorDiff[i];
                   }
-                  // Handle this derivative --> d F_i/d W_abc
-                  adjustment *= neuronThresholdFunctionDeriv(activationValueUnbounded) * activations[0][k];
-                  // Multiply by learning factor to get delta W
-                  adjustment *= lambda;
+                  // Multiply by learning factor to get delta W and Handle this derivative --> d F_i/d W_abc
+                  adjustment *= lambda * neuronThresholdFunctionDeriv(unboundedActivations[1][j]) * activations[0][k];
                   // Store delta W in array
                   weightAdjustments[0][k][j] = adjustment;
                }
@@ -788,19 +779,26 @@ public class Perceptron
 
             continueTraining = false;
          }
+
+         // REMOVE - BITMAP TESTING
+//         if (iterationCounter % 100 == 0)
+//            System.out.println(iterationCounter + " Iterations: " + (System.nanoTime() / 1000000000.0 - startTime));
       }
 
-      System.out.println();
-      System.out.println("weights: " + Arrays.deepToString(weights));
-      System.out.println("lambda: " + lambda);
-
-      System.out.println();
-      double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-      System.out.println("errors: " + Arrays.toString(errorCalculator(outputs,calculatedOutputs)));
-      System.out.println("outputs: " + Arrays.deepToString(calculatedOutputs));
-
-      System.out.println();
-      System.out.println("Total Iterations: " + iterationCounter);
+      // REMOVE - BITMAP TESTING
+//      System.out.println("Training Done!!");
+//
+//      System.out.println();
+//      System.out.println("weights: HOW ABOUT NO!");
+//      System.out.println("lambda: " + lambda);
+//
+//      System.out.println();
+//      double[][] calculatedOutputs = runNetworkOnInputs(inputs);
+//      System.out.println("errors: " + Arrays.toString(errorCalculator(outputs,calculatedOutputs)));
+//      System.out.println("outputs: " + Arrays.deepToString(calculatedOutputs));
+//
+//      System.out.println();
+//      System.out.println("Total Iterations: " + iterationCounter);
    }
 
    /**
@@ -866,38 +864,16 @@ public class Perceptron
       // Iterate over all the neurons in the layer with the given layer
       for (int layerElementIndex = 0; layerElementIndex < layerCounts[layer]; layerElementIndex++)
       {
-         // All the neurons from the previous layer, stored in an array
-         double[] prevNeurons = new double[layerCounts[prevLayer]];
-         for (int prevNeuronIndex = 0; prevNeuronIndex < prevNeurons.length; prevNeuronIndex++)
-            prevNeurons[prevNeuronIndex] = activations[prevLayer][prevNeuronIndex];
-
-         // All the weights from the previous layer, stored in an array
-         double[] prevWeights = new double[prevNeurons.length];
-
-         for (int prevLayerElementIndex = 0; prevLayerElementIndex < layerCounts[prevLayer]; prevLayerElementIndex++)
-            prevWeights[prevLayerElementIndex] = weights[prevLayer][prevLayerElementIndex][layerElementIndex];
-
-         // DEBUG
-         //System.out.print("a[" + layer + "][" + layerElementIndex + "] = f(");
-
          // The activation value of neuron indexed layerElementIndex is calculated - Currently Dot Product
-         activations[layer][layerElementIndex] = 0;
-         for (int index = 0; index < prevNeurons.length; index++)
+         unboundedActivations[layer][layerElementIndex] = 0;
+         for (int index = 0; index < layerCounts[prevLayer]; index++)
          {
-            activations[layer][layerElementIndex] += prevNeurons[index] * prevWeights[index];
-
-            // DEBUG
-            /*
-            System.out.print("a[" + prevLayer + "][" + index + "]w[" + prevLayer + "][" + index  + "][" + layerElementIndex + "]");
-            if (index != prevNeurons.length - 1)
-               System.out.print(" + ");
-            */
+            double activation = activations[prevLayer][index] * weights[prevLayer][index][layerElementIndex];
+            unboundedActivations[layer][layerElementIndex] += activation;
          }
 
          // Apply the threshold function
-         activations[layer][layerElementIndex] = neuronThresholdFunction(activations[layer][layerElementIndex]);
-         // DEBUG
-         //System.out.println(")");
+         activations[layer][layerElementIndex] = neuronThresholdFunction(unboundedActivations[layer][layerElementIndex]);
       }
    }
 
@@ -921,11 +897,16 @@ public class Perceptron
     */
    private double neuronThresholdFunction(double neuronInput)
    {
+      double pow2to24min1 = 16777215.0;
+
       // f(x) = x
       //return neuronInput;
 
       // f(x) = Sigmoid Function
-      return 1.0 / (1.0 + Math.exp(-neuronInput));
+      return pow2to24min1 * 1.0 / (1.0 + Math.exp(-neuronInput));
+
+      // f(x) = Gaussian Distribution Function
+      //return pow2to24min1 * Math.exp(-neuronInput * neuronInput);
    }
 
    /**
@@ -948,11 +929,16 @@ public class Perceptron
     */
    private double neuronThresholdFunctionDeriv(double neuronInput)
    {
+      double pow2to24min1 = 16777215.0;
+
       // f(x) = x
       //return 1;
 
       // f(x) = Sigmoid Function
       double sigmoidValue = neuronThresholdFunction(neuronInput);
-      return sigmoidValue * (1.0 - sigmoidValue);
+      return sigmoidValue * (1.0 - sigmoidValue / pow2to24min1);
+
+      // f(x) = Gaussian Distribution Function
+      //return -2.0 * neuronInput * neuronThresholdFunction(neuronInput);
    }
 }

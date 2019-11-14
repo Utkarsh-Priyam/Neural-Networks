@@ -40,7 +40,11 @@ public class Main
       try
       {
          System.out.println("Enter the file path to the file configuration file");
-         String fileConfigPath = inputStreamReader.readLine();
+         String fileConfigPath;
+         if (args.length >= 1)
+            fileConfigPath = args[0];
+         else
+            fileConfigPath = inputStreamReader.readLine();
          if (fileConfigPath.equals(""))
             fileConfigPath = defaultFileConfigPath;
 
@@ -70,11 +74,15 @@ public class Main
       String networkStructure, runType;
       String lambdaConfig, randomWeightBounds, useRaggedArrays;
       double minimumError;
-      int maximumIterationCount;
+      int maximumIterationCount, numTestCases;
       try
       {
          System.out.println("Enter the file path to the network configuration file");
-         String networkStructureFile = inputStreamReader.readLine();
+         String networkStructureFile;
+         if (args.length >= 2)
+            networkStructureFile = args[1];
+         else
+            networkStructureFile = inputStreamReader.readLine();
          if (networkStructureFile.equals(""))
             networkStructureFile = defaultNetworkConfigPath;
 
@@ -83,6 +91,9 @@ public class Main
 
          networkStructure = fileConfigReader.readLine();
          runType = fileConfigReader.readLine();
+         numTestCases = parseInt(fileConfigReader.readLine(), 0);
+         if (numTestCases == 0)
+            throw new IllegalArgumentException("There must be at least 1 test case to execute over!");
 
          lambdaConfig = fileConfigReader.readLine();
          minimumError = parseDouble(fileConfigReader.readLine(),0.00001);
@@ -133,14 +144,17 @@ public class Main
       double[][] calculatedOutputs;
       if (runType.equals("run"))
       {
-         calculatedOutputs = pdp.runNetwork(inputsFile);
+         calculatedOutputs = pdp.runNetwork(inputsFile, numTestCases);
       }
       else if (runType.equals("train"))
       {
          // Train network
-         pdp.trainNetwork(inputsFile,outputsFile);
+         long s = System.nanoTime();
+         pdp.trainNetwork(inputsFile, outputsFile, numTestCases);
+         long e = System.nanoTime();
+         calculatedOutputs = pdp.runNetwork(inputsFile, numTestCases);
 
-         calculatedOutputs = pdp.runNetwork(inputsFile);
+         System.out.println("TIME: " + ((double) (e-s) / 1000000000.0));
       }
       else if (runType.equals("test"))
       {

@@ -28,6 +28,7 @@ Line 3: Number of Test Cases to Execute Over
 Line 4: Starting LAMBDA value, LAMBDA change value, Minimum LAMBDA cap, Maximum LAMBDA cap
   -- A list of 4 space-separated doubles (in this order)
   -- Results guaranteed only if: Minimum LAMBDA cap < Starting LAMBDA value < Maximum LAMBDA cap
+  -- For an unbounded max LAMBDA, put in any negative value
 Line 5: The Minimum Error Under Which the Network Can Declare Success
   -- Set this to 0 if you want to get rid of the minimum error success exit case
 Line 6: The Maximum Number of Iterations Before the Network Stops Training
