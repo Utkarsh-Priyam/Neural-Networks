@@ -149,12 +149,8 @@ public class Main
       else if (runType.equals("train"))
       {
          // Train network
-         long s = System.nanoTime();
          pdp.trainNetwork(inputsFile, outputsFile, numTestCases);
-         long e = System.nanoTime();
          calculatedOutputs = pdp.runNetwork(inputsFile, numTestCases);
-
-         System.out.println("TIME: " + ((double) (e-s) / 1000000000.0));
       }
       else if (runType.equals("test"))
       {

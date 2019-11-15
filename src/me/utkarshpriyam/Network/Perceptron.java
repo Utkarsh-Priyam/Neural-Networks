@@ -684,6 +684,10 @@ public class Perceptron
       double psi, maximumTestCaseError, caseError, newCaseError, newErrorDiff;
       double[] calculatedOutputs, newCalculatedOutputs;
 
+      // TIMING
+      int pingInterval = Math.min(1000, maximumIterationCount / 10);
+      long startTime = System.nanoTime(), lastPingTime = startTime;
+
       while (continueTraining)
       {
          maximumTestCaseError = 0.0;
@@ -773,17 +777,34 @@ public class Perceptron
 
             continueTraining = false;
          }
+
+         // TIMING
+         if (continueTraining && iterationCounter % pingInterval == 0)
+         {
+            long pingTime = System.nanoTime();
+
+            String message = "TIME ELAPSED for Iterations " + (iterationCounter - pingInterval) + " to " +
+                  iterationCounter +  ": " + ((double) (pingTime - lastPingTime) / 1000000000.0);
+
+            System.out.println(message);
+            lastPingTime = System.nanoTime();
+         }
       }
-
-      System.out.println("weights: CHECK WEIGHT DUMP");
-      System.out.println("lambda: " + lambda);
-
-      System.out.println();
-      System.out.println("errors: NOT SUPPORTED RIGHT NOW");
-      System.out.println("outputs: CHECK OUTPUT DUMP");
 
       System.out.println();
       System.out.println("Total Iterations: " + iterationCounter);
+
+      // TIMING
+      long endTime = System.nanoTime();
+      System.out.println("TOTAL TIME ELAPSED: " + ((double) (endTime - startTime) / 1000000000.0));
+
+      System.out.println();
+      System.out.println("weights: CHECK WEIGHT DUMP");
+      System.out.println("outputs: CHECK OUTPUT DUMP");
+
+      System.out.println();
+      System.out.println("errors: NOT SUPPORTED RIGHT NOW");
+      System.out.println("lambda: " + lambda);
    }
 
    /**
