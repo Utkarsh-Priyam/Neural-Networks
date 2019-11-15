@@ -41,7 +41,7 @@ Line 8: Whether to Generate the Underlying Arrays as RAGGED Arrays or BOX Arrays
   -- "true" = RAGGED Array
   -- "false" = BOX Array
   -- Any Other String = BOX Array
-  -- Right now there is only support for BOX Arrays
+  -- There is no functional difference between the RAGGED and BOX Arrays
 
 Inputs File Layout:
 -------------------

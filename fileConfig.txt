@@ -1,5 +1,5 @@
-files/pelValues.txt
-files/pelValues.txt
+files/inputs.txt
+files/outputs.txt
 files/weights.txt
 files/weightDump.txt
 files/outputDump.txt

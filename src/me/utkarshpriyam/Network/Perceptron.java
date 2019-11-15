@@ -140,37 +140,56 @@ public class Perceptron
    double[][][] weights;
 
    /**
+    * TODO: JavaDoc THIS SHIT 11/14/19
+    */
+   private int numNeuronLayers, numWeightLayers, inputLayer, outputLayer;
+
+   /**
+    * TODO: JavaDoc THIS SHIT 11/14/19
+    */
+   private double[][][] deltaWeights;
+   private double[][] omega;
+
+   /**
     * This is the first constructor for the Perceptron class.
     * It takes in a single array that contains the counts
     * of the number of neurons in each layer of the network.
     *
-    * @param layerCounts The array which contains the number of
-    *                    neurons in each layer of the network
+    * @param layerCounts      The array which contains the number of neurons in each layer of the network
+    * @param useRaggedArrays  A boolean flag that determines whether or not the underlying arrays
+    *                         of the network are ragged arrays or boxed arrays
     *
     * @throws IllegalArgumentException This method throws an IllegalArgumentException
     *                                  if the parameter passed does not have at least
     *                                  2 values (for the input and output layers).
     */
-   public Perceptron(int[] layerCounts, boolean useRaggedArrays)
+   Perceptron(int[] layerCounts, boolean useRaggedArrays)
    {
+      // Set the indices for the most important layers
+      numNeuronLayers = layerCounts.length;
+      numWeightLayers = numNeuronLayers - 1;
+      inputLayer = 0;
+      outputLayer = numNeuronLayers - 1;
+
+      // Set whether or not to use ragged arrays
       GENERATE_RAGGED_ARRAYS = useRaggedArrays;
 
-      // Throw an IllegalArgumentException if not enough layers (2) are passed
-      if (layerCounts.length < 2)
-         throw new IllegalArgumentException("not enough layers in network");
+      // Throw an IllegalArgumentException if not enough layers (at least 3) are passed
+      if (numNeuronLayers < 3)
+         throw new IllegalArgumentException("Not enough layers in network");
 
-      // Adjust the inputs to ensure that every layer has at least 1 neuron
+      // Adjust the layer counts to ensure that every layer has at least 1 neuron
       setMinimumAllowed(layerCounts,1);
 
       // Store the layers array
       this.layerCounts = layerCounts;
       // Shorten the layer counts array to exclude the input and output counts
-      int[] innerLayerCounts = new int[layerCounts.length - 2];
+      int[] innerLayerCounts = new int[numNeuronLayers - 2];
       for (int innerLayerIndex = 0; innerLayerIndex < innerLayerCounts.length; innerLayerIndex++)
          innerLayerCounts[innerLayerIndex] = layerCounts[innerLayerIndex + 1];
 
       // Generate the neuron and edge arrays
-      generateNeuronsAndEdgesArrays(layerCounts[0],innerLayerCounts,layerCounts[layerCounts.length-1]);
+      generateNeuronsAndEdgesArrays(layerCounts[inputLayer], innerLayerCounts, layerCounts[outputLayer]);
    }
 
    /**
@@ -184,12 +203,21 @@ public class Perceptron
     * @param hiddenLayersCount The array which contains the number of
     *                          neurons in each hidden layer of the network
     * @param numOutputs        The number of neurons in the output layer of the network
+    * @param useRaggedArrays   A boolean flag that determines whether or not the underlying arrays
+    *                          of the network are ragged arrays or boxed arrays
     */
-   public Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs, boolean useRaggedArrays)
+   Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs, boolean useRaggedArrays)
    {
+      // Set the indices for the most important layers
+      numNeuronLayers = hiddenLayersCount.length + 2;
+      numWeightLayers = numNeuronLayers - 1;
+      inputLayer = 0;
+      outputLayer = numNeuronLayers - 1;
+
+      // Set whether or not to use ragged arrays
       GENERATE_RAGGED_ARRAYS = useRaggedArrays;
 
-      // Adjust the inputs to ensure that every layer has at least 1 neuron
+      // Adjust the layer counts to ensure that every layer has at least 1 neuron
       if (numInputs < 1)
          numInputs = 1;
       if (numOutputs < 1)
@@ -197,13 +225,13 @@ public class Perceptron
       setMinimumAllowed(hiddenLayersCount,1);
 
       // Compact all the layers data into one single array
-      layerCounts = new int[hiddenLayersCount.length + 2];
-      layerCounts[0] = numInputs;
+      layerCounts = new int[numNeuronLayers];
+      layerCounts[inputLayer] = numInputs;
       System.arraycopy(hiddenLayersCount, 0, layerCounts, 1, hiddenLayersCount.length);
-      layerCounts[layerCounts.length-1] = numOutputs;
+      layerCounts[outputLayer] = numOutputs;
 
       // Generate the neuron and edge arrays
-      generateNeuronsAndEdgesArrays(numInputs,hiddenLayersCount,numOutputs);
+      generateNeuronsAndEdgesArrays(numInputs, hiddenLayersCount, numOutputs);
    }
 
    /**
@@ -211,8 +239,6 @@ public class Perceptron
     * are at least as large as the given input integer
     * @param hiddenLayersCount The array to read and modify
     * @param minimumValue      The minimum allowed value
-    *
-    * @return The adjusted array
     */
    private void setMinimumAllowed(int[] hiddenLayersCount, int minimumValue)
    {
@@ -239,6 +265,7 @@ public class Perceptron
     */
    private void generateNeuronsAndEdgesArrays(int numInputs, int[] hiddenLayersCount, int numOutputs)
    {
+      // Generate the underlying arrays of the network
       if (GENERATE_RAGGED_ARRAYS)
          // Generate Ragged Arrays
          generateArraysRagged(numInputs,hiddenLayersCount,numOutputs);
@@ -269,28 +296,40 @@ public class Perceptron
    private void generateArraysRagged(int numInputs, int[] hiddenLayersCount, int numOutputs)
    {
       // Generate Neurons Array - Total Layers = Input + Hidden + Output = 2 + numHidden
-      activations = new double[2 + hiddenLayersCount.length][];
-      unboundedActivations = new double[activations.length][];
+      activations = new double[numNeuronLayers][];
+      unboundedActivations = new double[numNeuronLayers][];
+      omega = new double[numNeuronLayers][];
 
       // Set Input Neurons Array length
       activations[0] = new double[numInputs];
       unboundedActivations[0] = new double[numInputs];
+      omega[0] = new double[numInputs];
       // Set Hidden Neurons Array length
-      for (int i = 1; i < activations.length - 1; i++)
+      for (int i = 1; i < numNeuronLayers - 1; i++)
       {
-         activations[i] = new double[hiddenLayersCount[i]];
-         unboundedActivations[i] = new double[hiddenLayersCount[i]];
+         activations[i] = new double[hiddenLayersCount[i-1]];
+         unboundedActivations[i] = new double[hiddenLayersCount[i-1]];
+         omega[i] = new double[hiddenLayersCount[i-1]];
       }
       // Set Output Neurons Array length
-      activations[activations.length - 1] = new double[numOutputs];
-      unboundedActivations[activations.length - 1] = new double[numOutputs];
+      activations[outputLayer] = new double[numOutputs];
+      unboundedActivations[outputLayer] = new double[numOutputs];
+      omega[outputLayer] = new double[numOutputs];
 
-      // Generate Edges Array - Total Layers = numNeurons - 1
-      weights = new double[activations.length - 1][][];
+      // Generate Weights Arrays - Total Layers = numNeurons - 1
+      weights = new double[numWeightLayers][][];
+      deltaWeights = new double[numWeightLayers][][];
 
       // Generate Second and Third Array Dimensions: Length = numNeurons in prev layer, next layer
-      for (int m = 0; m < weights.length; m++)
-         weights[m] = new double[activations[m].length][activations[m+1].length];
+      weights[0] = new double[numInputs][hiddenLayersCount[0]];
+      deltaWeights[0] = new double[numInputs][hiddenLayersCount[0]];
+      for (int m = 1; m < numWeightLayers - 1; m++)
+      {
+         weights[m] = new double[hiddenLayersCount[m]][hiddenLayersCount[m + 1]];
+         deltaWeights[m] = new double[hiddenLayersCount[m]][hiddenLayersCount[m + 1]];
+      }
+      weights[numWeightLayers - 1] = new double[hiddenLayersCount[numWeightLayers - 2]][numOutputs];
+      deltaWeights[numWeightLayers - 1] = new double[hiddenLayersCount[numWeightLayers - 2]][numOutputs];
    }
 
    /**
@@ -316,17 +355,20 @@ public class Perceptron
    private void generateArraysRegular(int numInputs, int[] hiddenLayersCount, int numOutputs)
    {
       // Count number maximum number of neurons in network
-      // The number will serve as the 2nd, 2nd and 3rd dimensions
-      // for the neurons, edges arrays
+      // The number will serve as the 2nd dimension for the neurons array
+      // and as the 2nd and 3rd dimensions for the weights array
       int maxNumNeurons = Math.max(numInputs,numOutputs);
       for (int numNeurons: hiddenLayersCount)
          if (maxNumNeurons < numNeurons)
             maxNumNeurons = numNeurons;
 
-      // Generate both arrays
-      activations = new double[2 + hiddenLayersCount.length][maxNumNeurons];
-      unboundedActivations = new double[activations.length][maxNumNeurons];
-      weights = new double[activations.length - 1][maxNumNeurons][maxNumNeurons];
+      // Generate all arrays
+      activations = new double[numNeuronLayers][maxNumNeurons];
+      unboundedActivations = new double[numNeuronLayers][maxNumNeurons];
+      omega = new double[numNeuronLayers][maxNumNeurons];
+
+      weights = new double[numWeightLayers][maxNumNeurons][maxNumNeurons];
+      deltaWeights = new double[numWeightLayers][maxNumNeurons][maxNumNeurons];
    }
 
    /**
@@ -352,7 +394,7 @@ public class Perceptron
          BufferedReader w = new BufferedReader(new FileReader(weightsFile));
 
          // Iterate through all the different weights layers
-         for (int m = 0; m < weights.length; m++)
+         for (int m = 0; m < numNeuronLayers - 1; m++)
          {
             // Make sure the next line is not null
             String textLine = w.readLine();
@@ -479,7 +521,7 @@ public class Perceptron
          BufferedReader in = new BufferedReader(new FileReader(outputsFile));
 
          // There are numTestCases total
-         int numOutputs = layerCounts[layerCounts.length-1];
+         int numOutputs = layerCounts[outputLayer];
          double[][] outputs = new double[numTestCases][numOutputs];
 
          // Iterate over all the test cases
@@ -555,49 +597,16 @@ public class Perceptron
       // Get the inputs from the file
       double[][] inputs = readInputs(inputsFile, numTestCases);
 
+      int numOutputs = layerCounts[outputLayer];
+
       // Run the network on the inputs
-      return runNetworkOnInputs(inputs);
-   }
-
-   /**
-    * This method runs the network on the given inputs, and
-    * it returns the output of the network on those inputs.
-    *
-    * This method takes exactly 1 parameter, a 2D array of doubles inputs,
-    * which represents the inputs on which to run the network.
-    *
-    * @param inputs The inputs on which to run the network
-    *
-    * @return A 2D array of doubles which represents the
-    *         output of the network for the given set of inputs
-    */
-   private double[][] runNetworkOnInputs(double[][] inputs)
-   {
-      // Index of output layer
-      int outputLayerIndex = activations.length - 1;
-
-      // Store the values of the output neurons into the 2D outputs array
-      double[] activatedNeurons = activations[outputLayerIndex];
-      int countOutputNeurons = layerCounts[outputLayerIndex];
-
-      // A 2D array is created with enough rows to store all the test cases individually
-      double[][] outputs = new double[inputs.length][countOutputNeurons];
-
-      // Iterate over all the test cases
-      for (int testCaseIndex = 0; testCaseIndex < inputs.length; testCaseIndex++)
+      double[][] outputs = new double[numTestCases][numOutputs];
+      for (int testCase = 0; testCase < numTestCases; testCase++)
       {
-         // Put the input values into the network
-         activations[0] = unboundedActivations[0] = inputs[testCaseIndex];
-
-         // Calculate the activation values for all activation layers
-         for (int n = 1; n < activations.length; n++)
-            calculateActivations(n);
-
-         // Store the values into the outputs array
-         for (int outputNeuronIndex = 0; outputNeuronIndex < countOutputNeurons; outputNeuronIndex++)
-            outputs[testCaseIndex][outputNeuronIndex] = activatedNeurons[outputNeuronIndex];
+         double[] output = runNetworkOnInputs(inputs[testCase]);
+         for (int outputIndex = 0; outputIndex < numOutputs; outputIndex++)
+            outputs[testCase][outputIndex] = output[outputIndex];
       }
-      // Return the 2D outputs array
       return outputs;
    }
 
@@ -615,23 +624,33 @@ public class Perceptron
     */
    private double[] runNetworkOnInputs(double[] inputs)
    {
-      // Return the outputs array - Last row of activations array
-      double[] calculatedOutputs = activations[activations.length - 1];
-
-      // A 1D array to hold the outputs
-      double[] outputs = new double[calculatedOutputs.length];;
-
       // Put the input values into the network
       activations[0] = unboundedActivations[0] = inputs;
 
       // Calculate the activation values for all activation layers
-      for (int n = 1; n < activations.length; n++)
-         calculateActivations(n);
+      for (int layer = 1; layer < numNeuronLayers; layer++)
+      {
+         // Get index of the previous layer
+         int prevLayer = layer - 1;
 
-      for (int index = 0; index < calculatedOutputs.length; index++)
-         outputs[index] = calculatedOutputs[index];
+         // Iterate over all the neurons in the layer with the given layer
+         for (int layerElementIndex = 0; layerElementIndex < layerCounts[layer]; layerElementIndex++)
+         {
+            // The activation value of neuron indexed layerElementIndex is calculated - Currently Dot Product
+            unboundedActivations[layer][layerElementIndex] = 0;
+            for (int index = 0; index < layerCounts[prevLayer]; index++)
+            {
+               double activation = activations[prevLayer][index] * weights[prevLayer][index][layerElementIndex];
+               unboundedActivations[layer][layerElementIndex] += activation;
+            }
 
-      return outputs;
+            // Apply the threshold function
+            activations[layer][layerElementIndex] = thresholdFunction(unboundedActivations[layer][layerElementIndex]);
+         }
+      }
+
+      // Return the 1D array of outputs
+      return activations[outputLayer];
    }
 
    /**
@@ -650,87 +669,63 @@ public class Perceptron
     */
    void trainNetwork(File inputsFile, File outputsFile, int numTestCases)
    {
-      if (layerCounts.length != 3)
-         throw new RuntimeException("training currently only works for A-B-C networks");
-
-      // REMOVE - BITMAP TESTING
-//      System.out.println("Starting Training");
       double[][] inputs = readInputs(inputsFile, numTestCases);
       double[][] outputs = readOutputs(outputsFile, numTestCases);
-      if (inputs.length != outputs.length)
+      if (inputs.length != outputs.length || inputs.length != numTestCases)
          throw new IllegalStateException("input and output files don't hold the same number of cases");
-
-      // REMOVE - BITMAP TESTING
-//      System.out.println(Arrays.deepToString(inputs));
-//      System.out.println(Arrays.deepToString(outputs));
-//      System.out.println("Inputs and Outputs read");
-//      double startTime = System.nanoTime() / 1000000000.0;
 
       boolean continueTraining = true;
       int iterationCounter = 0;
 
-      // The weights adjustment array
-      double[][][] weightAdjustments = new double[weights.length][weights[0].length][weights[0][0].length];
       // The error difference for this test case
-      double[] errorDiff = new double[layerCounts[2]];
+      double[] errorDiff = omega[outputLayer];
+
+      // Declare all variables outside all loops
+      double psi, maximumTestCaseError, caseError, newCaseError, newErrorDiff;
+      double[] calculatedOutputs, newCalculatedOutputs;
 
       while (continueTraining)
       {
-         double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-
-         double minimumTestCaseError = Double.MAX_VALUE;
+         maximumTestCaseError = 0.0;
 
          for (int testCaseIndex = 0; testCaseIndex < numTestCases; testCaseIndex++)
          {
-            // Run network on test case to store activation values into array
-            runNetworkOnInputs(inputs[testCaseIndex]);
+            // Run network on test case to store activation values into array - Get the outputs
+            calculatedOutputs = runNetworkOnInputs(inputs[testCaseIndex]);
+            for (int outputIndex = 0; outputIndex < layerCounts[outputLayer]; outputIndex++)
+               omega[outputLayer][outputIndex] = outputs[testCaseIndex][outputIndex] - calculatedOutputs[outputIndex];
 
-            for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
-               for (int i = 0; i < layerCounts[2]; i++) // Output Layer
-               {
-                  errorDiff[i] = outputs[testCaseIndex][i] - calculatedOutputs[testCaseIndex][i];
-
-                  // These 2 lines handle this derivative --> d F_i/d W_abc
-                  double adjustment = neuronThresholdFunctionDeriv(unboundedActivations[2][i]) * activations[1][j];
-                  // Multiply by learning factor and error diff to get delta W
-                  adjustment *= lambda * errorDiff[i];
-                  // Store delta W in array
-                  weightAdjustments[1][j][i] = adjustment;
-               }
-
-            for (int k = 0; k < layerCounts[0]; k++) // Input Layer
-               for (int j = 0; j < layerCounts[1]; j++) // Middle Layer
-               {
-                  // Total delta W
-                  double adjustment = 0;
-
-                  // Do for loop over all possible outputs
-                  for (int i = 0; i < layerCounts[2]; i++) // Output Layer
-                  {
-                     // Handle this derivative ( d f(h_j)/d W_abc ) and multiply by case.output error
-                     adjustment += neuronThresholdFunctionDeriv(unboundedActivations[2][i]) * weights[1][j][i] * errorDiff[i];
-                  }
-                  // Multiply by learning factor to get delta W and Handle this derivative --> d F_i/d W_abc
-                  adjustment *= lambda * neuronThresholdFunctionDeriv(unboundedActivations[1][j]) * activations[0][k];
-                  // Store delta W in array
-                  weightAdjustments[0][k][j] = adjustment;
-               }
-
-            // Scaled, Positive Error for this case
-            double caseError = 0;
-            for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+            // Get current case error
+            caseError = 0.0;
+            for (int i = 0; i < layerCounts[outputLayer]; i++) // Output Layer
                caseError += errorDiff[i] * errorDiff[i] / 2.0;
 
-            for (int m = 0; m < weights.length; m++)
-               for (int jk = 0; jk < layerCounts[m]; jk++)
-                  for (int ij = 0; ij < layerCounts[m+1]; ij++)
-                     weights[m][jk][ij] += weightAdjustments[m][jk][ij];
-
-            double[][] newCalculatedOutputs = runNetworkOnInputs(inputs);
-            double newCaseError = 0, newErrorDiff;
-            for (int i = 0; i < layerCounts[2]; i++) // Output Layer
+            // BACK-PROPAGATION!!
+            for (int layerIndex = outputLayer - 1; layerIndex >= 0; layerIndex--)
             {
-               newErrorDiff = outputs[testCaseIndex][i] - newCalculatedOutputs[testCaseIndex][i];
+               int rightLayer = layerIndex + 1;
+               for (int rightIndex = 0; rightIndex < layerCounts[rightLayer]; rightIndex++)
+               {
+                  // Get psi
+                  psi = omega[rightLayer][rightIndex] * thresholdFunctionDeriv(unboundedActivations[rightLayer][rightIndex]);
+                  // Clear omega array
+                  omega[rightLayer][rightIndex] = 0;
+
+                  for (int leftIndex = 0; leftIndex < layerCounts[layerIndex]; leftIndex++)
+                  {
+                     omega[layerIndex][leftIndex] += psi * weights[layerIndex][leftIndex][rightIndex];
+                     deltaWeights[layerIndex][leftIndex][rightIndex] = psi * lambda * activations[layerIndex][leftIndex];
+                     weights[layerIndex][leftIndex][rightIndex] += deltaWeights[layerIndex][leftIndex][rightIndex];
+                  }
+               }
+            }
+
+            // Get new case error
+            newCalculatedOutputs = runNetworkOnInputs(inputs[testCaseIndex]);
+            newCaseError = 0.0;
+            for (int i = 0; i < layerCounts[outputLayer]; i++) // Output Layer
+            {
+               newErrorDiff = outputs[testCaseIndex][i] - newCalculatedOutputs[i];
                newCaseError += newErrorDiff * newErrorDiff / 2.0;
             }
 
@@ -739,21 +734,20 @@ public class Perceptron
                // Cap lambda (learning factor) to lambdaMaxCap
                if (lambda < lambdaMaxCap)
                   lambda *= lambdaChange;
-               calculatedOutputs = newCalculatedOutputs;
 
-               if (minimumTestCaseError > newCaseError)
-                  minimumTestCaseError = newCaseError;
+               if (maximumTestCaseError < newCaseError)
+                  maximumTestCaseError = newCaseError;
             }
             else
             {
                lambda /= lambdaChange;
-               for (int m = 0; m < weights.length; m++)
+               for (int m = 0; m < numWeightLayers; m++)
                   for (int jk = 0; jk < layerCounts[m]; jk++)
                      for (int ij = 0; ij < layerCounts[m+1]; ij++)
-                        weights[m][jk][ij] -= weightAdjustments[m][jk][ij];
+                        weights[m][jk][ij] -= deltaWeights[m][jk][ij];
 
-               if (minimumTestCaseError > caseError)
-                  minimumTestCaseError = caseError;
+               if (maximumTestCaseError < caseError)
+                  maximumTestCaseError = caseError;
             }
          }
 
@@ -763,10 +757,10 @@ public class Perceptron
             continueTraining = false;
          }
 
-         if (minimumTestCaseError < minimumError)
+         if (maximumTestCaseError < minimumError)
          {
             System.out.println("Maximum Test Case Error went below Minimum Error Success Threshold: " +
-                    minimumTestCaseError + " < " + minimumError);
+                  maximumTestCaseError + " < " + minimumError);
 
             continueTraining = false;
          }
@@ -779,102 +773,17 @@ public class Perceptron
 
             continueTraining = false;
          }
-
-         // REMOVE - BITMAP TESTING
-//         if (iterationCounter % 100 == 0)
-//            System.out.println(iterationCounter + " Iterations: " + (System.nanoTime() / 1000000000.0 - startTime));
       }
 
-      // REMOVE - BITMAP TESTING
-//      System.out.println("Training Done!!");
-//
-//      System.out.println();
-//      System.out.println("weights: HOW ABOUT NO!");
-//      System.out.println("lambda: " + lambda);
-//
-//      System.out.println();
-//      double[][] calculatedOutputs = runNetworkOnInputs(inputs);
-//      System.out.println("errors: " + Arrays.toString(errorCalculator(outputs,calculatedOutputs)));
-//      System.out.println("outputs: " + Arrays.deepToString(calculatedOutputs));
-//
-//      System.out.println();
-//      System.out.println("Total Iterations: " + iterationCounter);
-   }
+      System.out.println("weights: CHECK WEIGHT DUMP");
+      System.out.println("lambda: " + lambda);
 
-   /**
-    * This method calculates the total error for the entire network.
-    * It does so by finding the error for each output and testcase.
-    * The testcase errors for each output are combined by taking
-    * the square root of the sum of the squares of the errors.
-    *
-    * This method takes 2 parameters: 2 double arrays which hold
-    * the expected and calculated outputs for the network
-    *
-    * @param expected   The expected outputs for the network
-    * @param calculated The calculated outputs for the network
-    *
-    * @return           An array of errors (for each output)
-    */
-   private double[] errorCalculator(double[][] expected, double[][] calculated)
-   {
-      if (expected.length != calculated.length || expected.length == 0)
-         throw new IllegalArgumentException("The expected and calculated arrays must both have the same " +
-               "non-zero number of test cases");
+      System.out.println();
+      System.out.println("errors: NOT SUPPORTED RIGHT NOW");
+      System.out.println("outputs: CHECK OUTPUT DUMP");
 
-      if (expected[0].length != calculated[0].length)
-         throw new IllegalArgumentException("The expected and calculated arrays must both have " +
-               "the same number of output neuron values");
-
-      double[] errors = new double[expected[0].length];
-      for (int outputIndex = 0; outputIndex < errors.length; outputIndex++)
-      {
-         for (int testCaseIndex = 0; testCaseIndex < expected.length; testCaseIndex++)
-         {
-            double expectedValue = expected[testCaseIndex][outputIndex];
-            double calculatedValue = calculated[testCaseIndex][outputIndex];
-
-            double testCaseError = expectedValue - calculatedValue; // Ti - Fi
-            testCaseError = testCaseError * testCaseError; // (Ti - Fi)^2
-
-            errors[outputIndex] += testCaseError * testCaseError / 4.0; // ((Ti - Fi)^4) / 4
-         }
-         errors[outputIndex] = Math.sqrt(errors[outputIndex]); // SQRT(sum of squares of errors)
-      }
-
-      return errors;
-   }
-
-   /**
-    * This method calculates the activation of
-    * all the neurons in the given layer.
-    *
-    * This method takes the single parameter layer,
-    * which tells which layer index to evaluate.
-    *
-    * @param layer The index of the layer to evaluate.
-    *              The layers are indexed from left to
-    *              right, with the input layer as 0 and
-    *              the output layer as layerCounts.length-1
-    */
-   private void calculateActivations(int layer)
-   {
-      // Get index of the previous layer
-      int prevLayer = layer - 1;
-
-      // Iterate over all the neurons in the layer with the given layer
-      for (int layerElementIndex = 0; layerElementIndex < layerCounts[layer]; layerElementIndex++)
-      {
-         // The activation value of neuron indexed layerElementIndex is calculated - Currently Dot Product
-         unboundedActivations[layer][layerElementIndex] = 0;
-         for (int index = 0; index < layerCounts[prevLayer]; index++)
-         {
-            double activation = activations[prevLayer][index] * weights[prevLayer][index][layerElementIndex];
-            unboundedActivations[layer][layerElementIndex] += activation;
-         }
-
-         // Apply the threshold function
-         activations[layer][layerElementIndex] = neuronThresholdFunction(unboundedActivations[layer][layerElementIndex]);
-      }
+      System.out.println();
+      System.out.println("Total Iterations: " + iterationCounter);
    }
 
    /**
@@ -895,18 +804,16 @@ public class Perceptron
     *
     * @return The bounded version of the input
     */
-   private double neuronThresholdFunction(double neuronInput)
+   private double thresholdFunction(double neuronInput)
    {
-      double pow2to24min1 = 16777215.0;
-
       // f(x) = x
       //return neuronInput;
 
       // f(x) = Sigmoid Function
-      return pow2to24min1 * 1.0 / (1.0 + Math.exp(-neuronInput));
+      return 1.0 / (1.0 + Math.exp(-neuronInput));
 
       // f(x) = Gaussian Distribution Function
-      //return pow2to24min1 * Math.exp(-neuronInput * neuronInput);
+      //return Math.exp(-neuronInput * neuronInput);
    }
 
    /**
@@ -927,16 +834,14 @@ public class Perceptron
     * @return The threshold function's derivative
     *         evaluated at the input double
     */
-   private double neuronThresholdFunctionDeriv(double neuronInput)
+   private double thresholdFunctionDeriv(double neuronInput)
    {
-      double pow2to24min1 = 16777215.0;
-
       // f(x) = x
       //return 1;
 
       // f(x) = Sigmoid Function
-      double sigmoidValue = neuronThresholdFunction(neuronInput);
-      return sigmoidValue * (1.0 - sigmoidValue / pow2to24min1);
+      double sigmoidValue = thresholdFunction(neuronInput);
+      return sigmoidValue * (1.0 - sigmoidValue);
 
       // f(x) = Gaussian Distribution Function
       //return -2.0 * neuronInput * neuronThresholdFunction(neuronInput);
