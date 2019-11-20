@@ -325,8 +325,8 @@ public class Perceptron
       deltaWeights[0] = new double[numInputs][hiddenLayersCount[0]];
       for (int m = 1; m < numWeightLayers - 1; m++)
       {
-         weights[m] = new double[hiddenLayersCount[m]][hiddenLayersCount[m + 1]];
-         deltaWeights[m] = new double[hiddenLayersCount[m]][hiddenLayersCount[m + 1]];
+         weights[m] = new double[hiddenLayersCount[m - 1]][hiddenLayersCount[m]];
+         deltaWeights[m] = new double[hiddenLayersCount[m - 1]][hiddenLayersCount[m]];
       }
       weights[numWeightLayers - 1] = new double[hiddenLayersCount[numWeightLayers - 2]][numOutputs];
       deltaWeights[numWeightLayers - 1] = new double[hiddenLayersCount[numWeightLayers - 2]][numOutputs];
@@ -685,8 +685,8 @@ public class Perceptron
       double[] calculatedOutputs, newCalculatedOutputs;
 
       // TIMING
-      int pingInterval = Math.min(1000, maximumIterationCount / 10);
-      long startTime = System.nanoTime(), lastPingTime = startTime;
+//      int pingInterval = Math.min(1000, maximumIterationCount / 10);
+//      long startTime = System.nanoTime(), lastPingTime = startTime;
 
       while (continueTraining)
       {
@@ -779,24 +779,24 @@ public class Perceptron
          }
 
          // TIMING
-         if (continueTraining && iterationCounter % pingInterval == 0)
-         {
-            long pingTime = System.nanoTime();
-
-            String message = "TIME ELAPSED for Iterations " + (iterationCounter - pingInterval) + " to " +
-                  iterationCounter +  ": " + ((double) (pingTime - lastPingTime) / 1000000000.0);
-
-            System.out.println(message);
-            lastPingTime = System.nanoTime();
-         }
+//         if (continueTraining && iterationCounter % pingInterval == 0)
+//         {
+//            long pingTime = System.nanoTime();
+//
+//            String message = "TIME ELAPSED for Iterations " + (iterationCounter - pingInterval) + " to " +
+//                  iterationCounter +  ": " + ((double) (pingTime - lastPingTime) / 1000000000.0);
+//
+//            System.out.println(message);
+//            lastPingTime = System.nanoTime();
+//         }
       }
 
       System.out.println();
       System.out.println("Total Iterations: " + iterationCounter);
 
       // TIMING
-      long endTime = System.nanoTime();
-      System.out.println("TOTAL TIME ELAPSED: " + ((double) (endTime - startTime) / 1000000000.0));
+//      long endTime = System.nanoTime();
+//      System.out.println("TOTAL TIME ELAPSED: " + ((double) (endTime - startTime) / 1000000000.0));
 
       System.out.println();
       System.out.println("weights: CHECK WEIGHT DUMP");
