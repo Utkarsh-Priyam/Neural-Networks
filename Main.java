@@ -22,9 +22,8 @@ public class Main
    private static String defaultNetworkConfigPath = "networkConfig.txt";
 
    /**
-    * This is the public static void main(...) method that
-    * will run the network until an interface is created
-    * instead.
+    * This is the public static void main(...) method that will run
+    * the network until an interface is created to replace it.
     *
     * This method takes the classic String[] parameter args.
     *
@@ -121,7 +120,7 @@ public class Main
       for (int networkLayerIndex = 0; networkLayerIndex < networkConfig.length; networkLayerIndex++)
          networkDimensions[networkLayerIndex] = parseInt(networkConfig[networkLayerIndex],0);
       boolean useRagged = useRaggedArrays.equals("true");
-      Perceptron pdp = new Perceptron(networkDimensions,useRagged);
+      Perceptron perceptronNetwork = new Perceptron(networkDimensions,useRagged);
 
       // Load lambda configuration information
       StringTokenizer lambdaConfigTokenizer = new StringTokenizer(lambdaConfig);
@@ -129,44 +128,51 @@ public class Main
       // Default 0 if missing (in most cases will simply prevent training the network)
       for (int i = 0; i < lambdaConfigurations.length; i++)
          lambdaConfigurations[i] = parseDouble(lambdaConfigTokenizer.nextToken(),0.0);
-      pdp.loadLambdaConfig(lambdaConfigurations);
+      perceptronNetwork.loadLambdaConfig(lambdaConfigurations);
 
       // Read the weights for the network from the file
       StringTokenizer randomWeightBoundsTokenizer = new StringTokenizer(randomWeightBounds);
       double minWeight = parseDouble(randomWeightBoundsTokenizer.nextToken(),0.0);
       double maxWeight = parseDouble(randomWeightBoundsTokenizer.nextToken(),0.0);
-      pdp.readWeights(weightsFile,minWeight,maxWeight);
+      perceptronNetwork.readWeights(weightsFile,minWeight,maxWeight);
 
       // Load in the other stopping condition parameters for the network
-      pdp.loadStopConditions(minimumError,maximumIterationCount);
+      perceptronNetwork.loadStopConditions(minimumError,maximumIterationCount);
 
       // Calculated Outputs
       double[][] calculatedOutputs;
-      if (runType.equals("run"))
+
+      switch (runType)
       {
-         calculatedOutputs = pdp.runNetwork(inputsFile, numTestCases);
-      }
-      else if (runType.equals("train"))
-      {
-         // Train network
-         pdp.trainNetwork(inputsFile, outputsFile, numTestCases);
-         calculatedOutputs = pdp.runNetwork(inputsFile, numTestCases);
-      }
-      else if (runType.equals("test"))
-      {
-         // Nothing done here right now
-         calculatedOutputs = new double[0][0];
-      }
-      else
-      {
-         System.out.println(runType + " is not a valid run type for this network.");
-         System.out.println("The only valid run types are \"run\", \"train\", and \"test\".");
-         return;
+         case "run":
+         {
+            calculatedOutputs = perceptronNetwork.runNetwork(inputsFile, numTestCases);
+            break;
+         }
+         case "train":
+         {
+            // Train network
+            perceptronNetwork.trainNetwork(inputsFile, outputsFile, numTestCases);
+            calculatedOutputs = perceptronNetwork.runNetwork(inputsFile, numTestCases);
+            break;
+         }
+         case "test":
+         {
+            // Nothing done here right now
+            calculatedOutputs = new double[0][0];
+            break;
+         }
+         default:
+         {
+            System.out.println(runType + " is not a valid run type for this network.");
+            System.out.println("The only valid run types are \"run\", \"train\", and \"test\".");
+            return;
+         }
       }
 
       try
       {
-         double[][][] finalWeights = pdp.weights;
+         double[][][] finalWeights = perceptronNetwork.weights;
          PrintWriter weightsDumpWriter = new PrintWriter(new BufferedWriter(new FileWriter(weightDumpPath)));
          for (int weightLayerIndex = 0; weightLayerIndex < finalWeights.length; weightLayerIndex++)
          {
@@ -192,6 +198,15 @@ public class Main
             outputsDumpWriter.println();
          }
          outputsDumpWriter.close();
+
+         if (runType.equals("train"))
+         {
+            PrintWriter otherDumpWriter = new PrintWriter(new BufferedWriter(new FileWriter(otherDumpPath)));
+            otherDumpWriter.println("Iterations:\n -- " + perceptronNetwork.iterationCounter);
+            otherDumpWriter.println("Highest Test Case Error:\n -- " + perceptronNetwork.maximumTestCaseError);
+            otherDumpWriter.println("Final Lambda:\n -- " + perceptronNetwork.lambda);
+            otherDumpWriter.close();
+         }
       }
       catch (IOException ioException)
       {

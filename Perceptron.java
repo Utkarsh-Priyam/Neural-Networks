@@ -25,12 +25,12 @@ import java.util.*;
  *      - As a result, the network will neither train its weights
  *        not return an error value
  *
- * WORK IN PROGRESS (Works for A-B-C networks):
  * In Training Mode (as the name suggests, to train the network):
  *   - The network will take in both the inputs and the expected outputs
  *   - The network will automatically calculate its error and
  *     use the method of gradient descent to adjust its weights
  *     in order to reduce that aforementioned error
+ *   - This uses fully generalized back-propagation!!
  *
  * TO BE IMPLEMENTED:
  * In Testing Mode (this is a blend of the previous two modes):
@@ -57,7 +57,7 @@ public class Perceptron
     * network adjusts its weights (whether it takes big or small
     * steps in the "downhill direction" (method of gradient descent).
     */
-   private double lambda;
+   double lambda;
 
    /**
     * The private double lambdaChange is a configurable double that tells
@@ -111,6 +111,14 @@ public class Perceptron
    private int maximumIterationCount;
 
    /**
+    * There two values are instance variables that hold information regarding the termination
+    * conditions of the network training. These variable values only hold meaning if the
+    * network was actually training. Otherwise, they hold the default values (0 and 0.0).
+    */
+   int iterationCounter;
+   double maximumTestCaseError;
+
+   /**
     * This package-private method takes in a double telling the minimum error that needs to be
     * achieved in order to declare success while training. It also takes in an integer which
     * gives a maximum number of iterations before the network will stop training.
@@ -140,12 +148,21 @@ public class Perceptron
    double[][][] weights;
 
    /**
-    * TODO: JavaDoc THIS SHIT 11/14/19
+    * These four ints give the lengths and indices for a couple of
+    * special locations within the underlying arrays of the network.
+    *
+    * numNeuronLayers:  The number of neuron layers in the network
+    * numWeightLayers:  The number of weight layers in the network
+    * inputLayer:       The index of the input layer
+    * outputLayer:      The index of the output layer
     */
    private int numNeuronLayers, numWeightLayers, inputLayer, outputLayer;
 
    /**
-    * TODO: JavaDoc THIS SHIT 11/14/19
+    * These two double arrays store values necessary for generalized
+    * back-propagation. The deltaWeights array holds the delta weights
+    * used during gradient descent, and the omega array stores the omega
+    * values used during back-propagation (as per the design document).
     */
    private double[][][] deltaWeights;
    private double[][] omega;
@@ -380,6 +397,8 @@ public class Perceptron
     * in a specific ordering and organization within the file.
     *
     * @param weightsFile       The file which holds all of the weights for the network
+    * @param minRandomWeight   The minimum value for weight randomization
+    * @param maxRandomWeight   The maximum value for weight randomization
     *
     * @throws RuntimeException This method throws a runtime exception if anything
     *                          goes wrong during the file-reading process.
@@ -455,6 +474,7 @@ public class Perceptron
     * in a specific ordering and organization within the file.
     *
     * @param inputsFile       The file which holds all of the inputs for the network
+    * @param numTestCases     The number of test cases in the training set
     *
     * @throws RuntimeException This method throws a runtime exception if anything
     *                          goes wrong during the file-reading process.
@@ -507,6 +527,7 @@ public class Perceptron
     * in a specific ordering and organization within the file.
     *
     * @param outputsFile       The file which holds all of the outputs for the network
+    * @param numTestCases     The number of test cases in the training set
     *
     * @throws RuntimeException This method throws a runtime exception if anything
     *                          goes wrong during the file-reading process.
@@ -587,6 +608,7 @@ public class Perceptron
     * in a specific ordering and organization within the file.
     *
     * @param inputsFile        The file which holds all of the inputs for the network
+    * @param numTestCases      The number of test cases in the training set
     *
     * @return A 2D array of doubles, where each row represents a new test case. The
     *         array rows are sorted in the order that the inputs are given. Each row
@@ -655,17 +677,18 @@ public class Perceptron
 
    /**
     * This method trains the network.
-    * It takes in 2 files which represent the input and output files.
+    * It takes in 2 files which represent the input and output files. It also takes in
+    * a single integer representing the number of test cases in the training set.
+    *
     * The method reads the inputs and outputs from the file and begins training.
-    * The training process currently caps out at 100k iterations (eventually configurable).
-    * The process also terminates if the lambda drops below a minimum cap (suggested to remain 0).
+    * It runs until it hits the max number of iterations, it hits the minimum error,
+    * or lambda drops below a minimum threshold.
     *
-    * To train, the process using gradient descent to find the minimum of the n-dimensional surface.
-    *
-    * Currently the training gradient descent only works for A-B-C networks.
+    * This method utilizes gradient descent and back-propagation to reach a minimum error.
     *
     * @param inputsFile    The inputs file
     * @param outputsFile   The outputs file
+    * @param numTestCases  The number of test cases in the training set
     */
    void trainNetwork(File inputsFile, File outputsFile, int numTestCases)
    {
@@ -675,13 +698,13 @@ public class Perceptron
          throw new IllegalStateException("input and output files don't hold the same number of cases");
 
       boolean continueTraining = true;
-      int iterationCounter = 0;
+      iterationCounter = 0;
 
       // The error difference for this test case
       double[] errorDiff = omega[outputLayer];
 
       // Declare all variables outside all loops
-      double psi, maximumTestCaseError, caseError, newCaseError, newErrorDiff;
+      double psi, caseError, newCaseError, newErrorDiff;
       double[] calculatedOutputs, newCalculatedOutputs;
 
       // TIMING
