@@ -1,5 +1,3 @@
-package me.utkarshpriyam.Network;
-
 import java.io.*;
 import java.util.*;
 
@@ -38,6 +36,26 @@ import java.util.*;
  *     However, as this is not a training exercise, the network will not
  *     update its weights in order to minimize error. It will simply calculate
  *     and return the error
+ *
+ * A list of all the methods in this class:
+ *   - void loadLambdaConfig(double[] lambdaConfig)
+ *   - void loadStopConditions(double minError, int maxItCount)
+ *   - Perceptron(int[] layerCounts, boolean useRaggedArrays)
+ *   - Perceptron(int numInputs, int[] hiddenLayersCount, int numOutputs, boolean useRaggedArrays)
+ *   - private void setMinimumAllowed(int[] hiddenLayersCount, int minimumValue)
+ *   - private void generateNeuronsAndEdgesArrays(int numInputs, int[] hiddenLayersCount, int numOutputs)
+ *   - private void generateArraysRagged(int numInputs, int[] hiddenLayersCount, int numOutputs)
+ *   - private void generateArraysRegular(int numInputs, int[] hiddenLayersCount, int numOutputs)
+ *   - void readWeights(File weightsFile, double minRandomWeight, double maxRandomWeight)
+ *   - private double random(double low, double high)
+ *   - private double[][] readInputs(File inputsFile, int numTestCases)
+ *   - private double[][] readOutputs(File outputsFile, int numTestCases)
+ *   - private double parseDouble(String nextToken, double defaultValue)
+ *   - double[][] runNetwork(File inputsFile, int numTestCases)
+ *   - private double[] runNetworkOnInputs(double[] inputs)
+ *   - void trainNetwork(File inputsFile, File outputsFile, int numTestCases)
+ *   - private double thresholdFunction(double neuronInput)
+ *   - private double thresholdFunctionDeriv(double neuronInput)
  *
  * @author Utkarsh Priyam
  * @version 9/4/19

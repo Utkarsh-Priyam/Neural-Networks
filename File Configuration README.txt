@@ -90,7 +90,12 @@ NOTE: Any data previously present in the file will be lost
 
 Other Dump File Layout:
 -----------------------
-ULTRA-IMPORTANT NOTE: This feature is currently not implemented
-  -- Most of these values will be printed out to System.out anyways
-DESCRIPTION: This is the file where other important values such as LAMBDA hyperparameters will be dumped
+DESCRIPTION: This is the file where other important values are dumped
+DESCRIPTION: This file currently has 3 values: Iterations, Highest Test Case Error, and Final Lambda
+  -- Iterations:
+    -- The number of iterations that the training took
+  -- Highest Test Case Error:
+    -- The highest error across all of the test cases used for training
+  -- Final Lambda:
+    -- The final value of the lambda training parameter
 NOTE: Any data previously present in the file will be lost

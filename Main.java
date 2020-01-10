@@ -1,5 +1,3 @@
-package me.utkarshpriyam.Network;
-
 import java.io.*;
 import java.util.StringTokenizer;
 
