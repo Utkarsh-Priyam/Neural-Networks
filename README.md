@@ -7,12 +7,14 @@ This repository is completely in [Java](https://www.oracle.com/java/).
 
 If you would like a [python](https://www.python.org/) version of this code base, check out [this](https://github.com/rishab-partha/Neural-Networks) repository by Rishab Parthasarathy.
 
-If you have taken this class and have well-written code in [C++](http://www.cplusplus.com/) or another popular language, contact me so I can set up a link to your repository as well.
+For a [C++](http://www.cplusplus.com/) version, check out [this](https://github.com/g10ria/ATCS-Neural-Networks) repository by Gloria Zhu.
+
+If you have taken this class and have well-written code in another popular language, contact me so I can set up a link to your repository as well.
 ##
-This repository is public but will only be updated sporadically.
+This repository is public but will only be sporadically updated.
 
 There may be some mild swearing (in commit names, JavaDoc, etc.).
 ##
-This repository can be used as a reference on how basic multi-layer perceptrons could be set up.
+This repository can be used as a reference for how basic multi-layer perceptrons can be set up.
 
 By accessing this repository, you agree to take any and all responsibility for any consequences that may arise from accusations of plagiarism or theft. Do NOT copy any code from this repository.
