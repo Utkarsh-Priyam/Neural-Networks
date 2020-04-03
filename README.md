@@ -3,11 +3,7 @@ This is my repository for all code related to the neural networks class I took i
 
 The repository will be updated to back up my work and reflect my work path through the class.
 ##
-This repository is completely in [Java](https://www.oracle.com/java/).
-
-If you would like a [python](https://www.python.org/) version of this code base, check out [this](https://github.com/rishab-partha/Neural-Networks) repository by Rishab Parthasarathy.
-
-For a [C++](http://www.cplusplus.com/) version, check out [this](https://github.com/g10ria/ATCS-Neural-Networks) repository by Gloria Zhu.
+This repository is completely in [Java](https://www.oracle.com/java/). If you would like a [python](https://www.python.org/) version of this code base, check out [this](https://github.com/rishab-partha/Neural-Networks) repository by Rishab Parthasarathy. For a [C++](http://www.cplusplus.com/) version, check out [this](https://github.com/g10ria/ATCS-Neural-Networks) repository by Gloria Zhu.
 
 If you have taken this class and have well-written code in another popular language, contact me so I can set up a link to your repository as well.
 ##
