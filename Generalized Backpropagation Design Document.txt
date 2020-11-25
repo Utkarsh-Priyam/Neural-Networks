@@ -1,0 +1,20 @@
+for (TestCase: 0 .. N)
+{
+   /*
+    * omega[outputLayer][output] = error[output]
+    */
+   
+   for (layer: Output Weights Layer .. Input Weights Layer)
+   {
+      for (hiddenR: 0 .. N) // (hiddenR == i,j)
+      {
+         psi = omega[layer][hiddenR] * f'(unbounded[layer][hiddenR])
+         
+         for (hiddenL: 0 .. N) // (hiddenL == j,k)
+         {
+            omega[layer][hiddenL] += psi * weights[layer][hiddenL][hiddenR]
+            weights[layer][hiddenL][hiddenR] += psi * lambda * activations[layer][hiddenL]
+         }
+      }
+   }
+}
